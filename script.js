@@ -90,6 +90,9 @@ const $ = {
   adminStoreFilter: document.getElementById("adminStoreFilter"),
   adminDateFilter: document.getElementById("adminDateFilter"),
   adminDateProgress: document.getElementById("adminDateProgress"),
+  adminSubmissionSummaryBody: document.getElementById("adminSubmissionSummaryBody"),
+  adminSubmissionSummaryMeta: document.getElementById("adminSubmissionSummaryMeta"),
+  adminClearSuggestionViewButton: document.getElementById("adminClearSuggestionViewButton"),
   adminProgressMeta: document.getElementById("adminProgressMeta"),
   adminProgressFilledBar: document.getElementById("adminProgressFilledBar"),
   adminProgressPendingBar: document.getElementById("adminProgressPendingBar"),
@@ -101,6 +104,7 @@ let cloud = null;
 let appInitialized = false;
 let visibleProductsIndex = buildVisibleProductsIndex(BASE_SALES);
 let realtimeBindingsStarted = false;
+let currentAdminViewedSubmissionId = "";
 
 async function initApp() {
   if (appInitialized) return;
@@ -341,10 +345,12 @@ function bindAdminEvents() {
   });
 
   $.adminStoreFilter?.addEventListener("change", () => {
+    clearAdminViewedSuggestion();
     renderizarTabelaADM().catch(console.error);
   });
 
   $.adminDateFilter?.addEventListener("change", () => {
+    clearAdminViewedSuggestion();
     renderizarTabelaADM().catch(console.error);
   });
 
@@ -360,6 +366,35 @@ function bindAdminEvents() {
     if (!deleteButton) return;
     event.preventDefault();
     await excluirSugestaoPorIds([deleteButton.dataset.docId]);
+  });
+
+  $.adminSummaryBody?.addEventListener("click", async (event) => {
+    const deleteButton = event.target.closest('[data-role="delete-submission"]');
+    if (!deleteButton) return;
+    event.preventDefault();
+    await excluirSugestaoPorIds([deleteButton.dataset.docId]);
+  });
+
+  $.adminSubmissionSummaryBody?.addEventListener("click", async (event) => {
+    const viewButton = event.target.closest('[data-role="view-submission"]');
+    if (viewButton) {
+      event.preventDefault();
+      currentAdminViewedSubmissionId = viewButton.dataset.docId || "";
+      syncAdminViewedSuggestionButton();
+      await renderizarTabelaADM();
+      return;
+    }
+
+    const deleteButton = event.target.closest('[data-role="delete-submission"]');
+    if (!deleteButton) return;
+    event.preventDefault();
+    await excluirSugestaoPorIds([deleteButton.dataset.docId]);
+  });
+
+  $.adminClearSuggestionViewButton?.addEventListener("click", async (event) => {
+    event.preventDefault();
+    clearAdminViewedSuggestion();
+    await renderizarTabelaADM();
   });
 }
 
@@ -1483,6 +1518,87 @@ async function getAdminFilledRows() {
   });
 }
 
+function syncAdminViewedSuggestionButton() {
+  if (!$.adminClearSuggestionViewButton) return;
+  $.adminClearSuggestionViewButton.hidden = !currentAdminViewedSubmissionId;
+}
+
+function clearAdminViewedSuggestion() {
+  currentAdminViewedSubmissionId = "";
+  syncAdminViewedSuggestionButton();
+}
+
+async function getAdminSuggestionSummaryRows() {
+  const localSubmissions = Object.values(readJson(STORAGE_KEY));
+  const cloudSubmissions = cloud?.listAll ? await cloud.listAll() : [];
+  const submissions = mergeSubmissions(localSubmissions, cloudSubmissions)
+    .sort((a, b) => {
+      const storeCompare = String(a.lojaExibicao || a.loja || "").localeCompare(String(b.lojaExibicao || b.loja || ""), "pt-BR");
+      if (storeCompare !== 0) return storeCompare;
+      return String(Array.isArray(a.dia) ? a.dia.join("+") : a.dia || "").localeCompare(String(Array.isArray(b.dia) ? b.dia.join("+") : b.dia || ""));
+    });
+
+  return submissions.map((submission) => {
+    const storeLabel = submission.lojaExibicao || getDisplayStoreName(submission.loja) || submission.loja || "-";
+    const diaArray = Array.isArray(submission.dia) ? submission.dia : [submission.dia || ""];
+    const dayLabel = diaArray.map((dayKey) => getDayLabel(dayKey) || dayKey || "-").join(" + ");
+    const dayKeyText = diaArray.filter(Boolean).join("+");
+    const submissionId = submission.id || `${slugify(submission.loja)}__${dayKeyText}`;
+    const totalLoja = submission.totalLoja !== undefined && submission.totalLoja !== null && submission.totalLoja !== ""
+      ? Number(submission.totalLoja || 0)
+      : (submission.items || []).reduce((sum, item) => sum + Number(item.storeSuggestion || 0), 0);
+
+    return {
+      loja: storeLabel,
+      lojaKey: submission.loja || "",
+      dia: dayLabel,
+      diaKey: dayKeyText,
+      diaArray,
+      responsavel: submission.responsavel || "-",
+      itens: Array.isArray(submission.items) ? submission.items.length : 0,
+      totalLoja,
+      updatedAt: submission.updatedAt || submission.updatedAtServer || "",
+      submissionId,
+    };
+  });
+}
+
+function filterAdminSuggestionSummaryRows(rows) {
+  const selectedStore = $.adminStoreFilter?.value || "";
+  const selectedDate = $.adminDateFilter?.value || "";
+
+  return (rows || []).filter((row) => {
+    const storeOk = !selectedStore || String(row.loja || "") === selectedStore;
+    const dateOk = !selectedDate || (Array.isArray(row.diaArray) ? row.diaArray.includes(selectedDate) : String(row.diaKey || "") === selectedDate);
+    return storeOk && dateOk;
+  });
+}
+
+function renderAdminSuggestionSummary(rows) {
+  if (!$.adminSubmissionSummaryBody || !$.adminSubmissionSummaryMeta) return;
+
+  const filteredRows = filterAdminSuggestionSummaryRows(rows);
+  $.adminSubmissionSummaryMeta.textContent = `${filteredRows.length} sugest${filteredRows.length === 1 ? 'ão enviada' : 'ões enviadas'}`;
+  $.adminSubmissionSummaryBody.innerHTML = filteredRows.length
+    ? filteredRows.map((row) => `
+        <tr>
+          <td>${escapeHtml(row.loja)}</td>
+          <td>${escapeHtml(row.dia)}</td>
+          <td>${escapeHtml(row.responsavel)}</td>
+          <td>${formatNumber(row.itens)}</td>
+          <td>${formatNumber(row.totalLoja)}</td>
+          <td>${escapeHtml(formatDateTime(row.updatedAt))}</td>
+          <td>
+            <div class="admin-row-actions">
+              <button class="admin-secondary-button" type="button" data-role="view-submission" data-doc-id="${escapeAttribute(row.submissionId)}">Ver</button>
+              <button class="admin-secondary-button" type="button" data-role="delete-submission" data-doc-id="${escapeAttribute(row.submissionId)}">Excluir</button>
+            </div>
+          </td>
+        </tr>
+      `).join("")
+    : `<tr><td colspan="7" class="admin-empty">Ainda não há sugestões enviadas para o filtro selecionado.</td></tr>`;
+}
+
 async function refreshAdminSummary() {
   if (!$.adminSummaryBody || !$.adminSummaryMeta) return;
 
@@ -1504,13 +1620,13 @@ async function refreshAdminSummary() {
             <td><button class="admin-secondary-button" type="button" data-role="delete-submission" data-doc-id="${escapeAttribute(row.submissionId)}">Excluir</button></td>
           </tr>
         `).join("")
-      : `<tr><td colspan="7" class="admin-empty">Ainda não há resumo disponível.</td></tr>`;
+      : `<tr><td colspan="8" class="admin-empty">Ainda não há resumo disponível.</td></tr>`;
 
     refreshAdminProgress(rows);
   } catch (error) {
     console.error(error);
     $.adminSummaryMeta.textContent = "Não foi possível carregar o resumo.";
-    $.adminSummaryBody.innerHTML = `<tr><td colspan="7" class="admin-empty">Não foi possível carregar o resumo agora.</td></tr>`;
+    $.adminSummaryBody.innerHTML = `<tr><td colspan="8" class="admin-empty">Não foi possível carregar o resumo agora.</td></tr>`;
     refreshAdminProgress([]);
   }
 }
@@ -1519,12 +1635,19 @@ async function renderizarTabelaADM() {
   if (!$.adminFilledBody || !$.adminFilledMeta) return;
 
   try {
-    const rows = await getAdminFilledRows();
-    const filteredRows = filterAdminFilledRows(rows);
-    const lojasPreenchidas = new Set(filteredRows.map((row) => row.loja)).size;
-    const filterLabel = getAdminFilledFilterLabel();
+    const summaryRows = await getAdminSuggestionSummaryRows();
+    renderAdminSuggestionSummary(summaryRows);
 
-    $.adminFilledMeta.textContent = `${filteredRows.length} linhas preenchidas • ${lojasPreenchidas} lojas com envio${filterLabel}`;
+    const rows = await getAdminFilledRows();
+    const baseFilteredRows = filterAdminFilledRows(rows);
+    const filteredRows = currentAdminViewedSubmissionId
+      ? baseFilteredRows.filter((row) => row.submissionId === currentAdminViewedSubmissionId)
+      : baseFilteredRows;
+    const lojasPreenchidas = new Set(baseFilteredRows.map((row) => row.loja)).size;
+    const filterLabel = getAdminFilledFilterLabel();
+    const viewedLabel = currentAdminViewedSubmissionId ? " • visualizando 1 sugestão" : "";
+
+    $.adminFilledMeta.textContent = `${filteredRows.length} linhas preenchidas • ${lojasPreenchidas} lojas com envio${filterLabel}${viewedLabel}`;
     $.adminFilledBody.innerHTML = filteredRows.length
       ? filteredRows.map((row) => `
           <tr>
@@ -1541,11 +1664,15 @@ async function renderizarTabelaADM() {
         `).join("")
       : `<tr><td colspan="10" class="admin-empty">Ainda não há sugestões preenchidas para o filtro selecionado.</td></tr>`;
 
+    syncAdminViewedSuggestionButton();
     refreshAdminDateProgress(rows);
   } catch (error) {
     console.error(error);
     $.adminFilledMeta.textContent = "Não foi possível carregar os dados preenchidos.";
     $.adminFilledBody.innerHTML = `<tr><td colspan="10" class="admin-empty">Não foi possível carregar os dados preenchidos agora.</td></tr>`;
+    if ($.adminSubmissionSummaryMeta) $.adminSubmissionSummaryMeta.textContent = "Não foi possível carregar o resumo das sugestões.";
+    if ($.adminSubmissionSummaryBody) $.adminSubmissionSummaryBody.innerHTML = `<tr><td colspan="7" class="admin-empty">Não foi possível carregar o resumo das sugestões agora.</td></tr>`;
+    syncAdminViewedSuggestionButton();
     refreshAdminDateProgress([]);
   }
 }
@@ -1764,6 +1891,10 @@ async function excluirSugestaoPorIds(docIds) {
 
     if (cloud?.deleteMany) {
       await cloud.deleteMany(ids);
+    }
+
+    if (ids.includes(currentAdminViewedSubmissionId)) {
+      clearAdminViewedSuggestion();
     }
 
     await refreshAdminSummary();

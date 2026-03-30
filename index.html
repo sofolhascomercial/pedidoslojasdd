@@ -279,10 +279,38 @@
 
             <div id="adminDateProgress" class="admin-summary-meta"></div>
 
+            <section class="admin-summary-card admin-inline-card">
+              <div class="admin-summary-head admin-summary-head-stack">
+                <div>
+                  <h3>Resumo de sugestões preenchidas</h3>
+                  <p class="admin-section-copy">Veja rapidamente cada sugestão enviada pela loja e exclua se for preciso.</p>
+                </div>
+                <span id="adminSubmissionSummaryMeta" class="admin-summary-meta"></span>
+              </div>
+
+              <div class="admin-summary-wrap">
+                <table class="admin-summary-table">
+                  <thead>
+                    <tr>
+                      <th>Loja</th>
+                      <th>Dia</th>
+                      <th>Responsável</th>
+                      <th>Itens</th>
+                      <th>Total sugestão loja</th>
+                      <th>Último envio</th>
+                      <th>Ações</th>
+                    </tr>
+                  </thead>
+                  <tbody id="adminSubmissionSummaryBody"></tbody>
+                </table>
+              </div>
+            </section>
+
             <div class="admin-export-actions">
               <button id="adminExportSummaryButton" class="admin-secondary-button" type="button" onclick="window.exportAdminSummary && window.exportAdminSummary()">Exportar resumo geral</button>
               <button id="adminExportFilledButton" class="admin-primary-button" type="button" onclick="window.exportAdminFilledData && window.exportAdminFilledData()">Exportar dados preenchidos</button>
               <button id="adminDeleteFilledButton" class="admin-secondary-button" type="button">Excluir sugestão filtrada</button>
+              <button id="adminClearSuggestionViewButton" class="admin-secondary-button" type="button" hidden>Voltar para todas as sugestões</button>
             </div>
 
             <div class="admin-summary-wrap">

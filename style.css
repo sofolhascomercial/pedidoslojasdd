@@ -940,3 +940,14 @@ body.modal-open {
   padding: 12px 16px;
   border-radius: 14px;
 }
+
+
+.admin-inline-card {
+  margin: 18px 0;
+}
+
+.admin-row-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
