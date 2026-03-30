@@ -17,6 +17,7 @@ const STORES_WITHOUT_REFERENCE = [
   "DD ITUMBIARA",
   "DD PARK JK",
 ];
+const MULTI_DAY_STORE_MATCHES = ["gurupi", "luis-eduardo-magalhaes", "goianesia", "itumbiara"];
 
 ensureStoresWithoutReference(BASE_SALES, STORE_DISPLAY_NAMES);
 
@@ -85,6 +86,7 @@ const $ = {
   adminFilledMeta: document.getElementById("adminFilledMeta"),
   adminExportSummaryButton: document.getElementById("adminExportSummaryButton"),
   adminExportFilledButton: document.getElementById("adminExportFilledButton"),
+  adminDeleteFilledButton: document.getElementById("adminDeleteFilledButton"),
   adminStoreFilter: document.getElementById("adminStoreFilter"),
   adminDateFilter: document.getElementById("adminDateFilter"),
   adminDateProgress: document.getElementById("adminDateProgress"),
@@ -142,6 +144,8 @@ function populateFilters() {
   $.daySelect.innerHTML = DELIVERY_DAYS
     .map((day) => `<option value="${day.key}">${day.label}</option>`)
     .join("");
+
+  syncDaySelectMode();
 }
 
 function populateAdminStoreFilter() {
@@ -189,14 +193,21 @@ function applyInitialSelection() {
   }
 
   if ([...$.daySelect.options].some((option) => option.value === defaultDay)) {
-    $.daySelect.value = defaultDay;
+    if ($.daySelect.multiple) {
+      [...$.daySelect.options].forEach((option) => { option.selected = option.value === defaultDay; });
+    } else {
+      $.daySelect.value = defaultDay;
+    }
   }
+
+  syncDaySelectMode();
 }
 
 
 function attachEvents() {
   $.storeSelect?.addEventListener("change", () => {
     persistDraftFromScreen();
+    syncDaySelectMode();
     renderAll();
     updateUrlParams();
   });
@@ -324,6 +335,11 @@ function bindAdminEvents() {
     await exportarDadosPreenchidosADM();
   });
 
+  $.adminDeleteFilledButton?.addEventListener("click", async (event) => {
+    event.preventDefault();
+    await excluirSugestaoFiltradaADM();
+  });
+
   $.adminStoreFilter?.addEventListener("change", () => {
     renderizarTabelaADM().catch(console.error);
   });
@@ -337,6 +353,13 @@ function bindAdminEvents() {
     if (!deleteButton) return;
     event.preventDefault();
     await handleDeleteImportedFile();
+  });
+
+  $.adminFilledBody?.addEventListener("click", async (event) => {
+    const deleteButton = event.target.closest('[data-role="delete-submission"]');
+    if (!deleteButton) return;
+    event.preventDefault();
+    await excluirSugestaoPorIds([deleteButton.dataset.docId]);
   });
 }
 
@@ -352,16 +375,17 @@ function handleAdminTabClick(tab) {
 
 function renderAll() {
   const storeKey = getSelectedStore();
-  const dayKey = getSelectedDayKey();
+  const dayKeys = getSelectedDayKeys();
+  const dayLabelText = getSelectedDayLabelText();
 
   $.selectedStoreName.textContent = getDisplayStoreName(storeKey);
-  $.selectedDayName.textContent = getDayLabel(dayKey);
-  $.tableDayLabel.textContent = getDayLabel(dayKey);
+  $.selectedDayName.textContent = dayLabelText;
+  $.tableDayLabel.textContent = dayLabelText;
   $.responsavelInput.value = "";
 
-  const productsToShow = getRenderableProducts(storeKey, dayKey);
+  const productsToShow = [...new Set(dayKeys.flatMap((dayKey) => getRenderableProducts(storeKey, dayKey)))].sort((a, b) => a.localeCompare(b, "pt-BR"));
   const rows = productsToShow.map((product) => {
-    const baseSale = Number(BASE_SALES[storeKey]?.[dayKey]?.[product] || 0);
+    const baseSale = dayKeys.reduce((sum, dayKey) => sum + Number(BASE_SALES[storeKey]?.[dayKey]?.[product] || 0), 0);
     const suggested = getSoFolhasSuggestion(baseSale);
 
     return {
@@ -376,7 +400,7 @@ function renderAll() {
   $.tableBody.innerHTML = rows.length
     ? rows
         .map((row) => `
-      <tr data-product="${escapeHtml(row.product)}">
+      <tr data-product="${escapeHtml(row.product)}" data-base-sale="${row.baseSale}" data-suggested="${row.suggested}">
         <td>${escapeHtml(row.product)}</td>
         <td><span class="qty-base">${formatNumber(row.baseSale)}</span></td>
         <td><span class="qty-suggestion">${formatNumber(row.suggested)}</span></td>
@@ -434,8 +458,8 @@ function updateTotals() {
 function collectRowsFromScreen() {
   return [...$.tableBody.querySelectorAll("tr")].filter((tr) => tr.querySelector('[data-role="store-suggestion"]')).map((tr) => {
     const product = tr.dataset.product;
-    const baseSale = Number(BASE_SALES[getSelectedStore()]?.[getSelectedDayKey()]?.[product] || 0);
-    const suggested = getSoFolhasSuggestion(baseSale);
+    const baseSale = Number(tr.dataset.baseSale || 0);
+    const suggested = Number(tr.dataset.suggested || getSoFolhasSuggestion(baseSale));
     const storeSuggestion = sanitizeInteger(tr.querySelector('[data-role="store-suggestion"]').value, 0);
     const observation = tr.querySelector('[data-role="observation"]').value.trim();
 
@@ -455,7 +479,7 @@ function persistDraftFromScreen() {
   const drafts = readJson(DRAFT_KEY);
   drafts[getSelectionKey()] = {
     loja: getSelectedStore(),
-    dia: getSelectedDayKey(),
+    dia: getSelectedDayValueForStorage(),
     responsavel: $.responsavelInput.value.trim(),
     items: collectRowsFromScreen(),
     updatedAt: new Date().toISOString(),
@@ -488,7 +512,7 @@ async function onSave() {
   const payload = {
     loja: getSelectedStore(),
     lojaExibicao: getDisplayStoreName(getSelectedStore()),
-    dia: getSelectedDayKey(),
+    dia: getSelectedDayValueForStorage(),
     diaSemana: getDayLabel(getSelectedDayKey()),
     responsavel,
     totalVendido: items.reduce((sum, row) => sum + row.baseSale, 0),
@@ -571,6 +595,9 @@ async function initCloud() {
       },
       clearAll: async () => {
         await databaseModule.remove(submissionsRef);
+      },
+      deleteMany: async (docIds) => {
+        await Promise.all((docIds || []).map((docId) => databaseModule.remove(databaseModule.child(submissionsRef, docId))));
       },
       saveAdminBase: async (base) => {
         await databaseModule.set(databaseModule.child(adminRef, 'base'), base || {});
@@ -686,7 +713,7 @@ function getSoFolhasSuggestion(baseSale) {
 }
 
 function getSelectionKey() {
-  return `${slugify(getSelectedStore())}__${getSelectedDayKey()}`;
+  return `${slugify(getSelectedStore())}__${getSelectedDayKeys().join("+")}`;
 }
 
 function getSelectedStore() {
@@ -694,7 +721,47 @@ function getSelectedStore() {
 }
 
 function getSelectedDayKey() {
-  return $.daySelect.value;
+  return getSelectedDayKeys()[0] || $.daySelect.value;
+}
+
+function getSelectedDayKeys() {
+  if (!$.daySelect) return [];
+  const values = [...$.daySelect.selectedOptions].map((option) => option.value).filter(Boolean);
+  if (values.length) return values;
+  return $.daySelect.value ? [$.daySelect.value] : [];
+}
+
+function getSelectedDayValueForStorage() {
+  const dayKeys = getSelectedDayKeys();
+  return dayKeys.length > 1 ? dayKeys : (dayKeys[0] || "");
+}
+
+function getSelectedDayLabelText() {
+  const labels = getSelectedDayKeys().map((dayKey) => getDayLabel(dayKey)).filter(Boolean);
+  return labels.join(" + ") || "-";
+}
+
+function isMultiDayStore(storeKey) {
+  const normalized = slugify(`${getDisplayStoreName(storeKey)} ${storeKey}`);
+  return MULTI_DAY_STORE_MATCHES.some((term) => normalized.includes(term));
+}
+
+function syncDaySelectMode() {
+  if (!$.daySelect) return;
+  const currentValues = getSelectedDayKeys();
+  const shouldBeMultiple = isMultiDayStore(getSelectedStore());
+  $.daySelect.multiple = shouldBeMultiple;
+  $.daySelect.size = shouldBeMultiple ? DELIVERY_DAYS.length : 1;
+
+  [...$.daySelect.options].forEach((option) => {
+    option.selected = shouldBeMultiple
+      ? (currentValues.length ? currentValues.includes(option.value) : option === $.daySelect.options[0])
+      : option.value === (currentValues[0] || option.value);
+  });
+
+  if (!shouldBeMultiple) {
+    $.daySelect.value = currentValues[0] || $.daySelect.options[0]?.value || "";
+  }
 }
 
 function getDayLabel(dayKey) {
@@ -1354,7 +1421,7 @@ async function getAdminSummaryRows() {
         }, 0);
 
         const submission = submissions.find((item) =>
-          slugify(item.loja) === slugify(storeKey) && String(item.dia) === day.key
+          slugify(item.loja) === slugify(storeKey) && (Array.isArray(item.dia) ? item.dia.includes(day.key) : String(item.dia) === day.key)
         );
 
         if (totalVendido === 0 && !submission) return;
@@ -1381,16 +1448,21 @@ async function getAdminFilledRows() {
     .sort((a, b) => {
       const storeCompare = String(a.lojaExibicao || a.loja || "").localeCompare(String(b.lojaExibicao || b.loja || ""), "pt-BR");
       if (storeCompare !== 0) return storeCompare;
-      return String(a.dia || "").localeCompare(String(b.dia || ""));
+      return String(Array.isArray(a.dia) ? a.dia.join("+") : a.dia || "").localeCompare(String(Array.isArray(b.dia) ? b.dia.join("+") : b.dia || ""));
     });
 
   const rows = submissions.flatMap((submission) => {
     const storeLabel = submission.lojaExibicao || getDisplayStoreName(submission.loja) || submission.loja || "-";
-    const dayLabel = getDayLabel(submission.dia || "") || submission.dia || "-";
+    const diaArray = Array.isArray(submission.dia) ? submission.dia : [submission.dia || ""];
+    const dayLabel = diaArray.map((dayKey) => getDayLabel(dayKey) || dayKey || "-").join(" + ");
+    const dayKeyText = diaArray.filter(Boolean).join("+");
+    const submissionId = submission.id || `${slugify(submission.loja)}__${dayKeyText}`;
     return (submission.items || []).map((item) => ({
       loja: storeLabel,
+      lojaKey: submission.loja || "",
       dia: dayLabel,
-      diaKey: submission.dia || "",
+      diaKey: dayKeyText,
+      diaArray,
       responsavel: submission.responsavel || "-",
       produto: item.product || "-",
       baseSale: Number(item.baseSale || 0),
@@ -1398,6 +1470,7 @@ async function getAdminFilledRows() {
       storeSuggestion: Number(item.storeSuggestion || 0),
       observation: item.observation || "",
       updatedAt: submission.updatedAt || submission.updatedAtServer || "",
+      submissionId,
     }));
   });
 
@@ -1428,6 +1501,7 @@ async function refreshAdminSummary() {
             <td>${row.totalLoja === "" ? "-" : formatNumber(row.totalLoja)}</td>
             <td>${escapeHtml(row.responsavel)}</td>
             <td>${escapeHtml(formatDateTime(row.updatedAt))}</td>
+            <td><button class="admin-secondary-button" type="button" data-role="delete-submission" data-doc-id="${escapeAttribute(row.submissionId)}">Excluir</button></td>
           </tr>
         `).join("")
       : `<tr><td colspan="7" class="admin-empty">Ainda não há resumo disponível.</td></tr>`;
@@ -1465,13 +1539,13 @@ async function renderizarTabelaADM() {
             <td>${escapeHtml(formatDateTime(row.updatedAt))}</td>
           </tr>
         `).join("")
-      : `<tr><td colspan="9" class="admin-empty">Ainda não há sugestões preenchidas para o filtro selecionado.</td></tr>`;
+      : `<tr><td colspan="10" class="admin-empty">Ainda não há sugestões preenchidas para o filtro selecionado.</td></tr>`;
 
     refreshAdminDateProgress(rows);
   } catch (error) {
     console.error(error);
     $.adminFilledMeta.textContent = "Não foi possível carregar os dados preenchidos.";
-    $.adminFilledBody.innerHTML = `<tr><td colspan="9" class="admin-empty">Não foi possível carregar os dados preenchidos agora.</td></tr>`;
+    $.adminFilledBody.innerHTML = `<tr><td colspan="10" class="admin-empty">Não foi possível carregar os dados preenchidos agora.</td></tr>`;
     refreshAdminDateProgress([]);
   }
 }
@@ -1482,7 +1556,7 @@ function filterAdminFilledRows(rows) {
 
   return rows.filter((row) => {
     const storeOk = !selectedStore || String(row.loja || "") === selectedStore;
-    const dateOk = !selectedDate || String(row.diaKey || "") === selectedDate;
+    const dateOk = !selectedDate || (Array.isArray(row.diaArray) ? row.diaArray.includes(selectedDate) : String(row.diaKey || "") === selectedDate);
     return storeOk && dateOk;
   });
 }
@@ -1516,7 +1590,7 @@ function refreshAdminDateProgress(rows) {
   const totalStores = Object.keys(BASE_SALES).length;
   const filledStores = new Set(
     (rows || [])
-      .filter((row) => String(row.diaKey || "") === selectedDate)
+      .filter((row) => Array.isArray(row.diaArray) ? row.diaArray.includes(selectedDate) : String(row.diaKey || "") === selectedDate)
       .map((row) => row.loja)
   ).size;
   const pendingStores = Math.max(totalStores - filledStores, 0);
@@ -1668,10 +1742,56 @@ function mergeSubmissions(localSubmissions, cloudSubmissions) {
 
   [...localSubmissions, ...cloudSubmissions].forEach((submission) => {
     if (!submission || !submission.loja || !submission.dia) return;
-    merged.set(`${slugify(submission.loja)}__${submission.dia}`, submission);
+    const diaKey = Array.isArray(submission.dia) ? submission.dia.join("+") : submission.dia;
+    merged.set(`${slugify(submission.loja)}__${diaKey}`, submission);
   });
 
   return [...merged.values()];
+}
+
+
+async function excluirSugestaoPorIds(docIds) {
+  const ids = [...new Set((docIds || []).filter(Boolean))];
+  if (!ids.length) {
+    showStatus("Selecione uma loja/data com sugestão para excluir.", true);
+    return;
+  }
+
+  try {
+    const saved = readJson(STORAGE_KEY);
+    ids.forEach((id) => { delete saved[id]; });
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(saved));
+
+    if (cloud?.deleteMany) {
+      await cloud.deleteMany(ids);
+    }
+
+    await refreshAdminSummary();
+    await renderizarTabelaADM();
+    renderAll();
+    showStatus("Sugestão excluída com sucesso.");
+  } catch (error) {
+    console.error(error);
+    showStatus("Não foi possível excluir a sugestão agora.", true);
+  }
+}
+
+async function excluirSugestaoFiltradaADM() {
+  if (!ensureAdminExportAllowed()) return;
+  const selectedStore = $.adminStoreFilter?.value || "";
+  if (!selectedStore) {
+    showStatus("Selecione a loja no filtro da ADM para excluir a sugestão.", true);
+    return;
+  }
+
+  const rows = filterAdminFilledRows(await getAdminFilledRows());
+  const ids = rows.map((row) => row.submissionId);
+  if (!ids.length) {
+    showStatus("Não há sugestão salva para o filtro selecionado.", true);
+    return;
+  }
+
+  await excluirSugestaoPorIds(ids);
 }
 
 function formatDateTime(value) {
