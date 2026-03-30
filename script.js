@@ -43,6 +43,8 @@ const FIREBASE_CONFIG = {
   appId: "1:1076514409050:web:b94f8d28d5c733a879e663"
 };
 const REALTIME_DB_PATH = "sugestoes_semana_santa";
+const REALTIME_DB_SUBMISSIONS_PATH = `${REALTIME_DB_PATH}/submissoes`;
+const REALTIME_DB_ADMIN_PATH = `${REALTIME_DB_PATH}/admin`;
 
 const $ = {
   storeSelect: document.getElementById("storeSelect"),
@@ -111,6 +113,11 @@ async function initApp() {
   switchAdminTab("import");
   closeAdminModal();
   await initCloud();
+  await hydrateAdminStateFromCloud();
+  populateFilters();
+  populateAdminStoreFilter();
+  populateAdminDateFilter();
+  applyInitialSelection();
   renderAdminImportedFiles();
   renderAll();
   await refreshAdminSummary();
@@ -251,6 +258,12 @@ function bindAdminEvents() {
       return;
     }
 
+    await hydrateAdminStateFromCloud();
+    populateFilters();
+    populateAdminStoreFilter();
+    populateAdminDateFilter();
+    renderAdminImportedFiles();
+    renderAll();
     await refreshAdminSummary();
     await renderizarTabelaADM();
   });
@@ -527,12 +540,13 @@ async function initCloud() {
 
     const app = appModule.initializeApp(normalizedConfig);
     const db = databaseModule.getDatabase(app);
-    const rootRef = databaseModule.ref(db, REALTIME_DB_PATH);
+    const submissionsRef = databaseModule.ref(db, REALTIME_DB_SUBMISSIONS_PATH);
+    const adminRef = databaseModule.ref(db, REALTIME_DB_ADMIN_PATH);
 
     cloud = {
       save: async (docId, payload) => {
         await databaseModule.set(
-          databaseModule.child(rootRef, docId),
+          databaseModule.child(submissionsRef, docId),
           {
             ...payload,
             id: docId,
@@ -541,7 +555,7 @@ async function initCloud() {
         );
       },
       listAll: async () => {
-        const snapshot = await databaseModule.get(rootRef);
+        const snapshot = await databaseModule.get(submissionsRef);
         const data = snapshot.exists() ? snapshot.val() : {};
         return Object.entries(data || {}).map(([id, value]) => ({
           id,
@@ -549,12 +563,55 @@ async function initCloud() {
         }));
       },
       clearAll: async () => {
-        await databaseModule.remove(rootRef);
+        await databaseModule.remove(submissionsRef);
+      },
+      saveAdminBase: async (base) => {
+        await databaseModule.set(databaseModule.child(adminRef, 'base'), base || {});
+      },
+      loadAdminBase: async () => {
+        const snapshot = await databaseModule.get(databaseModule.child(adminRef, 'base'));
+        return snapshot.exists() ? snapshot.val() : null;
+      },
+      saveImportedFiles: async (files) => {
+        await databaseModule.set(databaseModule.child(adminRef, 'importedFiles'), files || []);
+      },
+      loadImportedFiles: async () => {
+        const snapshot = await databaseModule.get(databaseModule.child(adminRef, 'importedFiles'));
+        return snapshot.exists() ? snapshot.val() : [];
+      },
+      clearAdminState: async () => {
+        await Promise.all([
+          databaseModule.remove(databaseModule.child(adminRef, 'base')),
+          databaseModule.remove(databaseModule.child(adminRef, 'importedFiles')),
+        ]);
       },
     };
   } catch (error) {
     console.error("Falha ao iniciar Firebase:", error);
     showStatus("O site abriu normalmente, mas a conexão com a nuvem não foi iniciada.", true);
+  }
+}
+
+async function hydrateAdminStateFromCloud() {
+  if (!cloud) return;
+
+  try {
+    const [cloudBase, cloudImportedFiles] = await Promise.all([
+      cloud.loadAdminBase?.(),
+      cloud.loadImportedFiles?.(),
+    ]);
+
+    if (cloudBase && typeof cloudBase === 'object' && Object.keys(cloudBase).length) {
+      BASE_SALES = normalizeImportedBase(cloudBase);
+      visibleProductsIndex = buildVisibleProductsIndex(BASE_SALES);
+      localStorage.setItem(ADMIN_BASE_KEY, JSON.stringify(cloudBase));
+    }
+
+    if (Array.isArray(cloudImportedFiles)) {
+      localStorage.setItem(ADMIN_IMPORTED_FILES_KEY, JSON.stringify(cloudImportedFiles));
+    }
+  } catch (error) {
+    console.error('Falha ao carregar a base da ADM da nuvem:', error);
   }
 }
 
@@ -749,11 +806,20 @@ function abrirADM() {
   syncAdminAuthUI();
 
   if (isAdminAuthenticated()) {
-    refreshAdminSummary().catch((error) => {
-      console.error(error);
-      showStatus("A ADM foi aberta, mas o resumo não pôde ser atualizado agora.", true);
-    });
-    renderizarTabelaADM().catch(console.error);
+    hydrateAdminStateFromCloud()
+      .then(() => {
+        populateFilters();
+        populateAdminStoreFilter();
+        populateAdminDateFilter();
+        renderAdminImportedFiles();
+        renderAll();
+        return refreshAdminSummary();
+      })
+      .then(() => renderizarTabelaADM())
+      .catch((error) => {
+        console.error(error);
+        showStatus("A ADM foi aberta, mas os dados não puderam ser atualizados agora.", true);
+      });
     return;
   }
 
@@ -829,8 +895,17 @@ async function processarImportacaoBase() {
 
     BASE_SALES = normalizedBase;
     visibleProductsIndex = buildVisibleProductsIndex(normalizedBase);
+    const importedFilesMeta = [buildImportedFileMeta(file, normalizedBase)];
     localStorage.setItem(ADMIN_BASE_KEY, JSON.stringify(normalizedBase));
-    localStorage.setItem(ADMIN_IMPORTED_FILES_KEY, JSON.stringify([buildImportedFileMeta(file, normalizedBase)]));
+    localStorage.setItem(ADMIN_IMPORTED_FILES_KEY, JSON.stringify(importedFilesMeta));
+
+    if (cloud?.saveAdminBase) {
+      await cloud.saveAdminBase(normalizedBase);
+    }
+
+    if (cloud?.saveImportedFiles) {
+      await cloud.saveImportedFiles(importedFilesMeta);
+    }
 
     populateFilters();
     populateAdminStoreFilter();
@@ -1164,6 +1239,9 @@ async function handleDeleteImportedFile() {
 
   try {
     await clearAllSubmissionData();
+    if (cloud?.clearAdminState) {
+      await cloud.clearAdminState();
+    }
     BASE_SALES = normalizeImportedBase({});
     visibleProductsIndex = buildVisibleProductsIndex(BASE_SALES);
     localStorage.removeItem(ADMIN_BASE_KEY);
