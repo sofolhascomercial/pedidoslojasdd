@@ -98,6 +98,7 @@ const $ = {
 let cloud = null;
 let appInitialized = false;
 let visibleProductsIndex = buildVisibleProductsIndex(BASE_SALES);
+let realtimeBindingsStarted = false;
 
 async function initApp() {
   if (appInitialized) return;
@@ -544,6 +545,9 @@ async function initCloud() {
     const adminRef = databaseModule.ref(db, REALTIME_DB_ADMIN_PATH);
 
     cloud = {
+      submissionsCache: null,
+      adminBaseCache: null,
+      importedFilesCache: null,
       save: async (docId, payload) => {
         await databaseModule.set(
           databaseModule.child(submissionsRef, docId),
@@ -555,6 +559,9 @@ async function initCloud() {
         );
       },
       listAll: async () => {
+        if (Array.isArray(cloud?.submissionsCache)) {
+          return cloud.submissionsCache;
+        }
         const snapshot = await databaseModule.get(submissionsRef);
         const data = snapshot.exists() ? snapshot.val() : {};
         return Object.entries(data || {}).map(([id, value]) => ({
@@ -569,6 +576,9 @@ async function initCloud() {
         await databaseModule.set(databaseModule.child(adminRef, 'base'), base || {});
       },
       loadAdminBase: async () => {
+        if (cloud && cloud.adminBaseCache !== null) {
+          return cloud.adminBaseCache;
+        }
         const snapshot = await databaseModule.get(databaseModule.child(adminRef, 'base'));
         return snapshot.exists() ? snapshot.val() : null;
       },
@@ -576,6 +586,9 @@ async function initCloud() {
         await databaseModule.set(databaseModule.child(adminRef, 'importedFiles'), files || []);
       },
       loadImportedFiles: async () => {
+        if (cloud && Array.isArray(cloud.importedFilesCache)) {
+          return cloud.importedFilesCache;
+        }
         const snapshot = await databaseModule.get(databaseModule.child(adminRef, 'importedFiles'));
         return snapshot.exists() ? snapshot.val() : [];
       },
@@ -585,7 +598,60 @@ async function initCloud() {
           databaseModule.remove(databaseModule.child(adminRef, 'importedFiles')),
         ]);
       },
+      bindRealtime: () => {
+        if (realtimeBindingsStarted) return;
+        realtimeBindingsStarted = true;
+
+        databaseModule.onValue(submissionsRef, (snapshot) => {
+          const data = snapshot.exists() ? snapshot.val() : {};
+          const list = Object.entries(data || {}).map(([id, value]) => ({
+            id,
+            ...(value || {}),
+          }));
+          cloud.submissionsCache = list;
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(data || {}));
+          renderAll();
+          refreshAdminSummary().catch(console.error);
+          renderizarTabelaADM().catch(console.error);
+        }, (error) => {
+          console.error('Falha ao sincronizar sugestões em tempo real:', error);
+        });
+
+        databaseModule.onValue(databaseModule.child(adminRef, 'base'), (snapshot) => {
+          const cloudBase = snapshot.exists() ? snapshot.val() : {};
+          cloud.adminBaseCache = cloudBase;
+          if (cloudBase && typeof cloudBase === 'object' && Object.keys(cloudBase).length) {
+            BASE_SALES = normalizeImportedBase(cloudBase);
+            localStorage.setItem(ADMIN_BASE_KEY, JSON.stringify(cloudBase));
+          } else {
+            BASE_SALES = normalizeImportedBase({});
+            localStorage.removeItem(ADMIN_BASE_KEY);
+          }
+          visibleProductsIndex = buildVisibleProductsIndex(BASE_SALES);
+          populateFilters();
+          populateAdminStoreFilter();
+          populateAdminDateFilter();
+          applyInitialSelection();
+          renderAdminImportedFiles();
+          renderAll();
+          refreshAdminSummary().catch(console.error);
+          renderizarTabelaADM().catch(console.error);
+        }, (error) => {
+          console.error('Falha ao sincronizar base da ADM em tempo real:', error);
+        });
+
+        databaseModule.onValue(databaseModule.child(adminRef, 'importedFiles'), (snapshot) => {
+          const files = snapshot.exists() ? snapshot.val() : [];
+          cloud.importedFilesCache = Array.isArray(files) ? files : [];
+          localStorage.setItem(ADMIN_IMPORTED_FILES_KEY, JSON.stringify(cloud.importedFilesCache));
+          renderAdminImportedFiles();
+        }, (error) => {
+          console.error('Falha ao sincronizar planilhas anexadas em tempo real:', error);
+        });
+      },
     };
+
+    cloud.bindRealtime();
   } catch (error) {
     console.error("Falha ao iniciar Firebase:", error);
     showStatus("O site abriu normalmente, mas a conexão com a nuvem não foi iniciada.", true);
