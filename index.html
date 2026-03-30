@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Só Folhas | Semana Santa - Sugestão de Pedido</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <main class="page-shell">
+    <header class="hero">
+      <div class="brand-wrap">
+        <img src="logo-sofolhas.png" alt="Só Folhas Hortifruti" class="brand-logo" />
+      </div>
+
+      <div class="hero-copy">
+        <h1>Semana Santa - Sugestão de Pedido</h1>
+        <p>
+          Base: Venda faturada no ano passado |
+          <strong>Sugestão Só Folhas: 40% acima da venda do dia</strong>
+        </p>
+      </div>
+    </header>
+
+    <button id="adminToggle" class="admin-fab" type="button" aria-label="Abrir área administrativa" title="Área administrativa" onclick="window.forceOpenAdmin && window.forceOpenAdmin(); window.openAdminModal && window.openAdminModal()">
+      <span aria-hidden="true">ADM</span>
+    </button>
+
+    <section class="filter-card">
+      <div class="filter-grid">
+        <div class="field-group">
+          <label for="storeSelect">1. Selecione a Loja</label>
+          <select id="storeSelect" aria-label="Selecione a loja"></select>
+        </div>
+
+        <div class="field-group">
+          <label for="daySelect">2. Selecione o Dia da Entrega</label>
+          <select id="daySelect" aria-label="Selecione o dia da entrega"></select>
+        </div>
+      </div>
+    </section>
+
+    <section class="summary-grid">
+      <article class="info-card">
+        <div class="icon-badge">🏬</div>
+        <div>
+          <span class="info-label">Loja Selecionada</span>
+          <strong id="selectedStoreName">-</strong>
+        </div>
+      </article>
+
+      <article class="info-card">
+        <div class="icon-badge">📅</div>
+        <div>
+          <span class="info-label">Dia da Entrega</span>
+          <strong id="selectedDayName">-</strong>
+        </div>
+      </article>
+
+      <article class="totals-card">
+        <div class="metric">
+          <span>Total Vendido</span>
+          <strong id="totalSold">0</strong>
+        </div>
+        <div class="metric">
+          <span>Total Sugestão Só Folhas</span>
+          <strong id="totalSoFolhas">0</strong>
+          <small>(+40%)</small>
+        </div>
+        <div class="metric metric-store">
+          <span>Total Sugestão da Loja</span>
+          <strong id="totalStore">0</strong>
+        </div>
+      </article>
+    </section>
+
+    <section class="table-card">
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Produto</th>
+              <th>Venda Ano Passado<br /><span id="tableDayLabel">-</span></th>
+              <th>Sugestão Só Folhas<br />(+40%)</th>
+              <th>Sugestão da Loja<br />(preencha)</th>
+              <th>Observação<br />(opcional)</th>
+            </tr>
+          </thead>
+          <tbody id="tableBody"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="footer-card">
+      <div class="responsavel-wrap">
+        <label for="responsavelInput">Responsável pelo preenchimento</label>
+        <input
+          type="text"
+          id="responsavelInput"
+          placeholder="Digite o nome de quem está preenchendo"
+          maxlength="120"
+        />
+      </div>
+
+      <button id="saveButton" class="save-button" type="button">
+        ✓ Salvar Sugestão
+      </button>
+    </section>
+
+    <p class="helper-text">Preencha a sugestão da loja e clique em salvar.</p>
+
+    <div id="statusMessage" class="status-message" aria-live="polite"></div>
+  </main>
+
+  <div id="adminModal" class="admin-modal" hidden aria-hidden="true">
+    <div class="admin-panel" role="dialog" aria-modal="true" aria-labelledby="adminTitle">
+      <div class="admin-header">
+        <div>
+          <h2 id="adminTitle">ADM</h2>
+          <p>Importe a planilha base e acompanhe o resumo de todas as lojas.</p>
+        </div>
+        <button id="adminClose" class="admin-close" type="button" aria-label="Fechar ADM" onclick="window.forceCloseAdmin && window.forceCloseAdmin(); window.closeAdminModal && window.closeAdminModal()">×</button>
+      </div>
+
+      <section id="adminLoginCard" class="admin-login-card">
+        <div class="admin-login-head">
+          <h3>Acesso administrativo</h3>
+          <p>Informe login e senha para liberar a área administrativa.</p>
+        </div>
+
+        <div class="admin-login-grid">
+          <div class="admin-upload-field">
+            <label for="adminLoginInput">Login</label>
+            <input id="adminLoginInput" type="text" autocomplete="username" />
+          </div>
+
+          <div class="admin-upload-field">
+            <label for="adminPasswordInput">Senha</label>
+            <input id="adminPasswordInput" type="password" autocomplete="current-password" />
+          </div>
+        </div>
+
+        <div class="admin-login-actions">
+          <button id="adminLoginButton" class="admin-primary-button" type="button" onclick="window.forceAdminLogin && window.forceAdminLogin(); window.handleAdminLogin && window.handleAdminLogin()">Entrar</button>
+        </div>
+
+        <div id="adminLoginMessage" class="admin-login-message" aria-live="polite"></div>
+      </section>
+
+      <section id="adminContent" class="admin-content" hidden aria-hidden="true">
+        <div class="admin-tabs" role="tablist" aria-label="Seções administrativas">
+          <button id="adminTabImport" class="admin-tab is-active" type="button" data-admin-tab="import" aria-selected="true" onclick="window.showAdminImportTab && window.showAdminImportTab()">Importação</button>
+          <button id="adminTabData" class="admin-tab" type="button" data-admin-tab="data" aria-selected="false" onclick="window.showAdminDataTab && window.showAdminDataTab()">Dados preenchidos</button>
+        </div>
+
+        <section id="adminImportSection" class="admin-section">
+          <section class="admin-upload-card">
+            <div class="admin-upload-grid">
+              <div class="admin-upload-field">
+                <label for="adminFileInput">Planilha base</label>
+                <input id="adminFileInput" type="file" accept=".xlsx,.xls,.csv" />
+                <small id="adminFileName" class="admin-file-name">Nenhuma planilha selecionada.</small>
+              </div>
+
+              <div class="admin-upload-actions">
+                <button id="adminImportButton" class="admin-primary-button" type="button" onclick="window.onAdminImport && window.onAdminImport()">Importar base</button>
+                <button id="adminRefreshButton" class="admin-secondary-button" type="button" onclick="window.refreshAdminSummaryView && window.refreshAdminSummaryView()">Atualizar resumo</button>
+                <button id="adminLogoutButton" class="admin-secondary-button" type="button" onclick="window.logoutAdminArea && window.logoutAdminArea()">Sair</button>
+              </div>
+            </div>
+          </section>
+
+          <section class="admin-summary-card admin-files-card">
+            <div class="admin-summary-head admin-summary-head-stack">
+              <div>
+                <h3>Planilhas anexadas</h3>
+                <p class="admin-section-copy">A base ativa sempre substitui a anterior. Ao excluir, os dados importados e os preenchimentos ligados a ela são removidos.</p>
+              </div>
+              <span id="adminFilesMeta" class="admin-summary-meta"></span>
+            </div>
+
+            <div class="admin-summary-wrap">
+              <table class="admin-summary-table admin-files-table">
+                <thead>
+                  <tr>
+                    <th>Arquivo</th>
+                    <th>Importada em</th>
+                    <th>Lojas com dados</th>
+                    <th>Itens com venda</th>
+                    <th>Ação</th>
+                  </tr>
+                </thead>
+                <tbody id="adminFilesBody"></tbody>
+              </table>
+            </div>
+          </section>
+
+          <section class="admin-summary-card">
+            <div class="admin-summary-head">
+              <h3>Resumo geral das lojas</h3>
+              <span id="adminSummaryMeta" class="admin-summary-meta"></span>
+            </div>
+
+            <div class="admin-summary-wrap">
+              <table class="admin-summary-table">
+                <thead>
+                  <tr>
+                    <th>Loja</th>
+                    <th>Dia</th>
+                    <th>Total Vendido</th>
+                    <th>Total Sugestão Só Folhas</th>
+                    <th>Total Sugestão Loja</th>
+                    <th>Responsável</th>
+                    <th>Último envio</th>
+                  </tr>
+                </thead>
+                <tbody id="adminSummaryBody"></tbody>
+              </table>
+            </div>
+          </section>
+
+          <section class="admin-progress-card">
+            <div class="admin-summary-head admin-summary-head-stack">
+              <div>
+                <h3>Acompanhamento de preenchimento</h3>
+                <p class="admin-section-copy">Percentual de lojas que já enviaram a sugestão e lojas que ainda faltam.</p>
+              </div>
+              <span id="adminProgressMeta" class="admin-summary-meta"></span>
+            </div>
+
+            <div class="admin-progress-chart" aria-label="Gráfico de preenchimento das lojas">
+              <div class="admin-progress-bar" role="img" aria-label="Gráfico de preenchimento">
+                <div id="adminProgressFilledBar" class="admin-progress-segment is-filled"></div>
+                <div id="adminProgressPendingBar" class="admin-progress-segment is-pending"></div>
+              </div>
+
+              <div class="admin-progress-legend">
+                <div class="admin-progress-item is-filled">
+                  <span class="admin-progress-dot"></span>
+                  <strong id="adminProgressFilledText">Preenchidas: 0 (0%)</strong>
+                </div>
+                <div class="admin-progress-item is-pending">
+                  <span class="admin-progress-dot"></span>
+                  <strong id="adminProgressPendingText">Pendentes: 0 (0%)</strong>
+                </div>
+              </div>
+            </div>
+          </section>
+        </section>
+
+        <section id="adminDataSection" class="admin-section" hidden>
+          <section class="admin-summary-card">
+            <div class="admin-summary-head admin-summary-head-stack">
+              <div>
+                <h3>Dados preenchidos pelas lojas</h3>
+                <p class="admin-section-copy">Visualização completa da sugestão Só Folhas e da sugestão informada pela loja.</p>
+              </div>
+              <span id="adminFilledMeta" class="admin-summary-meta"></span>
+            </div>
+
+            <div class="admin-data-toolbar">
+              <div class="admin-filter-field">
+                <label for="adminStoreFilter">Filtrar por loja</label>
+                <select id="adminStoreFilter">
+                  <option value="">Todas as lojas</option>
+                </select>
+              </div>
+              <div class="admin-filter-field">
+                <label for="adminDateFilter">Filtrar por data</label>
+                <select id="adminDateFilter">
+                  <option value="">Todas as datas</option>
+                </select>
+              </div>
+            </div>
+
+            <div id="adminDateProgress" class="admin-summary-meta"></div>
+
+            <div class="admin-export-actions">
+              <button id="adminExportSummaryButton" class="admin-secondary-button" type="button" onclick="window.exportAdminSummary && window.exportAdminSummary()">Exportar resumo geral</button>
+              <button id="adminExportFilledButton" class="admin-primary-button" type="button" onclick="window.exportAdminFilledData && window.exportAdminFilledData()">Exportar dados preenchidos</button>
+            </div>
+
+            <div class="admin-summary-wrap">
+              <table class="admin-summary-table admin-filled-table">
+                <thead>
+                  <tr>
+                    <th>Loja</th>
+                    <th>Dia</th>
+                    <th>Responsável</th>
+                    <th>Produto</th>
+                    <th>Venda Ano Passado</th>
+                    <th>Sugestão Só Folhas</th>
+                    <th>Sugestão da Loja</th>
+                    <th>Observação</th>
+                    <th>Último envio</th>
+                  </tr>
+                </thead>
+                <tbody id="adminFilledBody"></tbody>
+              </table>
+            </div>
+          </section>
+        </section>
+      </section>
+    </div>
+  </div>
+
+
+  <script>
+    (function () {
+      const ADMIN_LOGIN = "richard.martins";
+      const ADMIN_PASSWORD = "sofolhas2026";
+      const ADMIN_SESSION_KEY = "sofolhas_semana_santa_admin_session_v1";
+
+      function getElement(id) {
+        return document.getElementById(id);
+      }
+
+      function syncVisibility(element, visible, displayValue) {
+        if (!element) return;
+        element.hidden = !visible;
+        element.setAttribute("aria-hidden", String(!visible));
+        element.style.display = visible ? (displayValue || "block") : "none";
+        element.style.visibility = visible ? "visible" : "hidden";
+        element.style.opacity = visible ? "1" : "0";
+        element.style.pointerEvents = visible ? "auto" : "none";
+        if (visible) {
+          element.removeAttribute("hidden");
+        } else {
+          element.setAttribute("hidden", "hidden");
+        }
+      }
+
+      function forceSyncAdminAuthUI() {
+        const authenticated = sessionStorage.getItem(ADMIN_SESSION_KEY) === "1";
+        const loginCard = getElement("adminLoginCard");
+        const content = getElement("adminContent");
+        const importSection = getElement("adminImportSection");
+        const dataSection = getElement("adminDataSection");
+        const tabImport = getElement("adminTabImport");
+        const tabData = getElement("adminTabData");
+        const loginMessage = getElement("adminLoginMessage");
+
+        syncVisibility(loginCard, !authenticated, "block");
+        syncVisibility(content, authenticated, "block");
+        syncVisibility(importSection, authenticated, "block");
+        syncVisibility(dataSection, false, "block");
+
+        if (tabImport) {
+          tabImport.classList.add("is-active");
+          tabImport.setAttribute("aria-selected", "true");
+        }
+
+        if (tabData) {
+          tabData.classList.remove("is-active");
+          tabData.setAttribute("aria-selected", "false");
+        }
+
+        if (loginMessage && !authenticated) {
+          loginMessage.textContent = "";
+          loginMessage.classList.remove("is-error", "is-success");
+        }
+      }
+
+      window.forceOpenAdmin = function () {
+        const modal = getElement("adminModal");
+        if (!modal) return;
+        syncVisibility(modal, true, "grid");
+        document.body.classList.add("modal-open");
+        forceSyncAdminAuthUI();
+        const loginInput = getElement("adminLoginInput");
+        if (sessionStorage.getItem(ADMIN_SESSION_KEY) !== "1" && loginInput) {
+          loginInput.focus();
+        }
+      };
+
+      window.forceCloseAdmin = function () {
+        const modal = getElement("adminModal");
+        if (!modal) return;
+        syncVisibility(modal, false, "grid");
+        document.body.classList.remove("modal-open");
+      };
+
+      window.forceAdminLogin = function () {
+        const loginInput = getElement("adminLoginInput");
+        const passwordInput = getElement("adminPasswordInput");
+        const loginMessage = getElement("adminLoginMessage");
+        const login = loginInput ? loginInput.value.trim() : "";
+        const password = passwordInput ? passwordInput.value : "";
+
+        if (!loginMessage) return;
+
+        if (login === ADMIN_LOGIN && password === ADMIN_PASSWORD) {
+          sessionStorage.setItem(ADMIN_SESSION_KEY, "1");
+          loginMessage.textContent = "Acesso liberado.";
+          loginMessage.classList.remove("is-error");
+          loginMessage.classList.add("is-success");
+          forceSyncAdminAuthUI();
+          return;
+        }
+
+        loginMessage.textContent = "Credencial inválida.";
+        loginMessage.classList.remove("is-success");
+        loginMessage.classList.add("is-error");
+      };
+
+      document.addEventListener("keydown", function (event) {
+        if (event.key === "Escape") {
+          window.forceCloseAdmin && window.forceCloseAdmin();
+        }
+      });
+    })();
+  </script>
+
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+  <script defer src="script.js"></script>
+</body>
+</html>
