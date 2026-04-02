@@ -195,6 +195,36 @@
             </div>
           </section>
 
+          <section class="admin-summary-card admin-reconciliation-card">
+            <div class="admin-summary-head admin-summary-head-stack">
+              <div>
+                <h3>Conciliação de datas importadas</h3>
+                <p class="admin-section-copy">Depois de importar a planilha, selecione a data encontrada nela e informe a qual dia da semana do sistema ela pertence.</p>
+              </div>
+              <span id="adminReconciliationMeta" class="admin-summary-meta"></span>
+            </div>
+
+            <div class="admin-data-toolbar">
+              <div class="admin-filter-field">
+                <label for="adminImportedDateSelect">Data encontrada na planilha</label>
+                <select id="adminImportedDateSelect">
+                  <option value="">Selecione a data importada</option>
+                </select>
+              </div>
+              <div class="admin-filter-field">
+                <label for="adminWeekdaySelect">Dia da semana correspondente</label>
+                <select id="adminWeekdaySelect">
+                  <option value="">Selecione o dia da semana</option>
+                </select>
+              </div>
+              <div class="admin-upload-actions admin-reconciliation-actions">
+                <button id="adminApplyReconciliationButton" class="admin-primary-button" type="button">Vincular data ao dia</button>
+              </div>
+            </div>
+
+            <div id="adminReconciliationList" class="admin-summary-meta"></div>
+          </section>
+
           <section class="admin-summary-card admin-files-card">
             <div class="admin-summary-head admin-summary-head-stack">
               <div>

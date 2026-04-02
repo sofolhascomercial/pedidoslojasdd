@@ -2,12 +2,13 @@ let BASE_SALES = {"Aparecida de Goiânia (GO)":{"2025-04-15":{"AGRIAO SO FOLHAS"
 const STORE_DISPLAY_NAMES = {"Aparecida de Goiânia (GO)":"Dia a Dia Aparecida de Goiânia","Avenida Rio Verde (GO)":"Dia a Dia Avenida Rio Verde","Balneário (GO)":"Dia a Dia Balneário","Ceilândia BR70 (DF)":"Dia a Dia Ceilândia BR70","Ceilândia Centro (DF)":"Dia a Dia Ceilândia Centro","Ceilândia Sul (DF)":"Dia a Dia Ceilândia Sul","César Lattes (GO)":"Dia a Dia César Lattes","Formosa (GO)":"Dia a Dia Formosa","Gama (DF)":"Dia a Dia Gama","Goianésia (GO)":"Dia a Dia Goianésia","Guará II (DF)":"Dia a Dia Guará II","Gurupi (TO)":"Dia a Dia Gurupi","Jardim botânico (DF)":"Dia a Dia Jardim botânico","Luziânia (GO)":"Dia a Dia Luziânia","Luís Eduardo Magalhães (BA)":"Dia a Dia Luís Eduardo Magalhães","Mestre D'armas (DF)":"Dia a Dia Mestre D'armas","Novo Gama (GO)":"Dia a Dia Novo Gama","Planaltina (DF )":"Dia a Dia Planaltina (DF)","Planaltina (GO)":"Dia a Dia Planaltina (GO)","Recanto das Emas (DF)":"Dia a Dia Recanto das Emas","Riacho Fundo 1 (DF)":"Dia a Dia Riacho Fundo 1","SIA (DF)":"Dia a Dia SIA","Samambaia (DF)":"Dia a Dia Samambaia","Santo Antônio do Descoberto (GO)":"Dia a Dia Santo Antônio do Descoberto","Sobradinho (DF)":"Dia a Dia Sobradinho","Taguatinga (DF)":"Dia a Dia Taguatinga","Vicente Pires  Rua 12(DF)":"Dia a Dia Vicente Pires Rua 12","Vicente Pires EPTG (DF)":"Dia a Dia Vicente Pires EPTG","Vicente Pires Rua 4A (DF)":"Dia a Dia Vicente Pires Rua 4A","Águas Claras (DF)":"Dia a Dia Águas Claras","Águas Lindas (GO)":"Dia a Dia Águas Lindas"};
 const PRODUCT_ORDER = ["AGRIAO SO FOLHAS", "ALECRIM SO FOLHAS", "ALFACE AMER SO FOLHAS BDJ AMERICANA", "ALFACE AMER SO FOLHAS", "ALFACE CRESPA SO FOLHAS", "ALFACE ROXA SO FOLHAS", "ALFACE LISA SO FOLHAS", "ALFACE MIMOSA SO FOLHAS", "ALMEIRAO SO FOLHAS UN", "ABOBORA ITALIA SO FOLHAS BDJ 300G", "ACELGA SO FOLHAS", "RUCULA SO FOLHAS", "MANJERICAO SO FOLHAS", "HORTELA SO FOLHAS", "SALSA SO FOLHAS", "SALSAO SO FOLHAS", "CHEIRO VERDE SO FOLHAS", "COENTRO SO FOLHAS", "BROCOLIS SO FOLHAS AMERICANO", "BROCOLIS SO FOLHAS", "CEBOLINHA SO FOLHAS", "COUVE SO FOLHAS PICADA", "COUVE SO FOLHAS", "ESPINAFRE SO FOLHAS"];
 const SORTED_PRODUCT_ORDER = [...PRODUCT_ORDER].sort((a, b) => a.localeCompare(b, "pt-BR"));
-const DELIVERY_DAYS = [{"key": "2025-04-15", "label": "Terça-Feira"}, {"key": "2025-04-16", "label": "Quarta-Feira"}, {"key": "2025-04-17", "label": "Quinta-Feira"}, {"key": "2025-04-18", "label": "Sexta-Feira"}, {"key": "2025-04-19", "label": "Sábado"}, {"key": "2025-04-20", "label": "Domingo"}];
+const DELIVERY_DAYS = [{"key": "2025-04-14", "label": "Segunda-Feira"}, {"key": "2025-04-15", "label": "Terça-Feira"}, {"key": "2025-04-16", "label": "Quarta-Feira"}, {"key": "2025-04-17", "label": "Quinta-Feira"}, {"key": "2025-04-18", "label": "Sexta-Feira"}, {"key": "2025-04-19", "label": "Sábado"}, {"key": "2025-04-20", "label": "Domingo"}];
 
 const STORAGE_KEY = "sofolhas_semana_santa_submissoes_v1";
 const DRAFT_KEY = "sofolhas_semana_santa_rascunhos_v1";
 const ADMIN_BASE_KEY = "sofolhas_semana_santa_base_adm_v1";
 const ADMIN_IMPORTED_FILES_KEY = "sofolhas_semana_santa_arquivos_adm_v1";
+const ADMIN_RAW_IMPORTED_BASE_KEY = "sofolhas_semana_santa_base_importada_bruta_v1";
 const ADMIN_SESSION_KEY = "sofolhas_semana_santa_admin_session_v1";
 const ADMIN_LOGIN = "richard.martins";
 const ADMIN_PASSWORD = "sofolhas2026";
@@ -103,6 +104,11 @@ const $ = {
   adminProgressPendingBar: document.getElementById("adminProgressPendingBar"),
   adminProgressFilledText: document.getElementById("adminProgressFilledText"),
   adminProgressPendingText: document.getElementById("adminProgressPendingText"),
+  adminImportedDateSelect: document.getElementById("adminImportedDateSelect"),
+  adminWeekdaySelect: document.getElementById("adminWeekdaySelect"),
+  adminApplyReconciliationButton: document.getElementById("adminApplyReconciliationButton"),
+  adminReconciliationMeta: document.getElementById("adminReconciliationMeta"),
+  adminReconciliationList: document.getElementById("adminReconciliationList"),
 };
 
 let cloud = null;
@@ -110,6 +116,7 @@ let appInitialized = false;
 let visibleProductsIndex = buildVisibleProductsIndex(BASE_SALES);
 let realtimeBindingsStarted = false;
 let currentAdminViewedSubmissionId = "";
+let rawImportedBaseCache = readJson(ADMIN_RAW_IMPORTED_BASE_KEY) || {};
 
 async function initApp() {
   if (appInitialized) return;
@@ -119,6 +126,7 @@ async function initApp() {
   populateFilters();
   populateAdminStoreFilter();
   populateAdminDateFilter();
+  populateAdminWeekdaySelect();
   applyInitialSelection();
   attachEvents();
   syncAdminAuthUI();
@@ -129,6 +137,7 @@ async function initApp() {
   populateFilters();
   populateAdminStoreFilter();
   populateAdminDateFilter();
+  populateAdminWeekdaySelect();
   applyInitialSelection();
   renderAdminImportedFiles();
   renderAll();
@@ -189,6 +198,56 @@ function populateAdminDateFilter() {
   if ([...$.adminDateFilter.options].some((option) => option.value === selectedValue)) {
     $.adminDateFilter.value = selectedValue;
   }
+}
+
+function populateAdminWeekdaySelect() {
+  if (!$.adminWeekdaySelect) return;
+  const selectedValue = $.adminWeekdaySelect.value;
+  $.adminWeekdaySelect.innerHTML = ['<option value="">Selecione o dia da semana</option>']
+    .concat(DELIVERY_DAYS.map((day) => `<option value="${day.key}">${escapeHtml(day.label)}</option>`))
+    .join("");
+  if ([...$.adminWeekdaySelect.options].some((option) => option.value === selectedValue)) {
+    $.adminWeekdaySelect.value = selectedValue;
+  }
+}
+
+function renderAdminReconciliationState() {
+  if (!$.adminImportedDateSelect || !$.adminWeekdaySelect || !$.adminReconciliationMeta || !$.adminReconciliationList) return;
+
+  const files = getImportedFilesList();
+  const activeFile = files[0] || null;
+  const availableDates = Array.isArray(activeFile?.availableDates) ? [...activeFile.availableDates] : [];
+  const mappings = activeFile?.dateMappings && typeof activeFile.dateMappings === "object" ? activeFile.dateMappings : {};
+  const selectedValue = $.adminImportedDateSelect.value;
+
+  $.adminImportedDateSelect.innerHTML = ['<option value="">Selecione a data importada</option>']
+    .concat(availableDates.map((dateKey) => `<option value="${dateKey}">${escapeHtml(formatDateKey(dateKey))}</option>`))
+    .join("");
+
+  if ([...$.adminImportedDateSelect.options].some((option) => option.value === selectedValue)) {
+    $.adminImportedDateSelect.value = selectedValue;
+  }
+
+  const linkedCount = Object.keys(mappings).length;
+  $.adminReconciliationMeta.textContent = activeFile
+    ? `${availableDates.length} data(s) importada(s) | ${linkedCount} vinculada(s)`
+    : "Importe uma planilha para liberar a conciliação.";
+
+  if (!activeFile) {
+    $.adminReconciliationList.textContent = "Nenhuma planilha importada no momento.";
+    return;
+  }
+
+  if (!availableDates.length) {
+    $.adminReconciliationList.textContent = "A planilha foi importada, mas nenhuma data válida foi encontrada.";
+    return;
+  }
+
+  $.adminReconciliationList.innerHTML = availableDates.map((dateKey) => {
+    const mappedDayKey = mappings[dateKey] || "";
+    const mappedLabel = mappedDayKey ? getDayLabel(mappedDayKey) : "Pendente";
+    return `<div>${escapeHtml(formatDateKey(dateKey))} → <strong>${escapeHtml(mappedLabel)}</strong></div>`;
+  }).join("");
 }
 
 
@@ -259,6 +318,10 @@ function bindAdminEvents() {
     abrirADM();
   });
 
+  $.adminApplyReconciliationButton?.addEventListener("click", async () => {
+    await applyImportedDateReconciliation();
+  });
+
   $.adminClose?.addEventListener("click", (event) => {
     event.preventDefault();
     fecharADM();
@@ -294,7 +357,9 @@ function bindAdminEvents() {
     populateFilters();
     populateAdminStoreFilter();
     populateAdminDateFilter();
+    populateAdminWeekdaySelect();
     renderAdminImportedFiles();
+    renderAdminReconciliationState();
     renderAll();
     await refreshAdminSummary();
     await renderizarTabelaADM();
@@ -674,10 +739,18 @@ async function initCloud() {
         const snapshot = await databaseModule.get(databaseModule.child(adminRef, 'importedFiles'));
         return snapshot.exists() ? snapshot.val() : [];
       },
+      saveRawImportedBase: async (rawBase) => {
+        await databaseModule.set(databaseModule.child(adminRef, 'rawImportedBase'), rawBase || {});
+      },
+      loadRawImportedBase: async () => {
+        const snapshot = await databaseModule.get(databaseModule.child(adminRef, 'rawImportedBase'));
+        return snapshot.exists() ? snapshot.val() : {};
+      },
       clearAdminState: async () => {
         await Promise.all([
           databaseModule.remove(databaseModule.child(adminRef, 'base')),
           databaseModule.remove(databaseModule.child(adminRef, 'importedFiles')),
+          databaseModule.remove(databaseModule.child(adminRef, 'rawImportedBase')),
         ]);
       },
       bindRealtime: () => {
@@ -727,8 +800,17 @@ async function initCloud() {
           cloud.importedFilesCache = Array.isArray(files) ? files : [];
           localStorage.setItem(ADMIN_IMPORTED_FILES_KEY, JSON.stringify(cloud.importedFilesCache));
           renderAdminImportedFiles();
+          renderAdminReconciliationState();
         }, (error) => {
           console.error('Falha ao sincronizar planilhas anexadas em tempo real:', error);
+        });
+
+        databaseModule.onValue(databaseModule.child(adminRef, 'rawImportedBase'), (snapshot) => {
+          rawImportedBaseCache = snapshot.exists() ? snapshot.val() : {};
+          localStorage.setItem(ADMIN_RAW_IMPORTED_BASE_KEY, JSON.stringify(rawImportedBaseCache || {}));
+          renderAdminReconciliationState();
+        }, (error) => {
+          console.error('Falha ao sincronizar base bruta importada em tempo real:', error);
         });
       },
     };
@@ -744,9 +826,10 @@ async function hydrateAdminStateFromCloud() {
   if (!cloud) return;
 
   try {
-    const [cloudBase, cloudImportedFiles] = await Promise.all([
+    const [cloudBase, cloudImportedFiles, cloudRawImportedBase] = await Promise.all([
       cloud.loadAdminBase?.(),
       cloud.loadImportedFiles?.(),
+      cloud.loadRawImportedBase?.(),
     ]);
 
     if (cloudBase && typeof cloudBase === 'object' && Object.keys(cloudBase).length) {
@@ -758,6 +841,13 @@ async function hydrateAdminStateFromCloud() {
     if (Array.isArray(cloudImportedFiles)) {
       localStorage.setItem(ADMIN_IMPORTED_FILES_KEY, JSON.stringify(cloudImportedFiles));
     }
+
+    if (cloudRawImportedBase && typeof cloudRawImportedBase === 'object') {
+      rawImportedBaseCache = cloudRawImportedBase;
+      localStorage.setItem(ADMIN_RAW_IMPORTED_BASE_KEY, JSON.stringify(cloudRawImportedBase));
+    }
+
+    renderAdminReconciliationState();
   } catch (error) {
     console.error('Falha ao carregar a base da ADM da nuvem:', error);
   }
@@ -822,8 +912,7 @@ function getSelectedDayLabelText() {
 }
 
 function isMultiDayStore(storeKey) {
-  const normalized = slugify(`${getDisplayStoreName(storeKey)} ${storeKey}`);
-  return MULTI_DAY_STORE_MATCHES.some((term) => normalized.includes(term));
+  return Boolean(storeKey);
 }
 
 function syncDaySelectMode() {
@@ -1024,7 +1113,9 @@ function abrirADM() {
         populateFilters();
         populateAdminStoreFilter();
         populateAdminDateFilter();
+        populateAdminWeekdaySelect();
         renderAdminImportedFiles();
+        renderAdminReconciliationState();
         renderAll();
         return refreshAdminSummary();
       })
@@ -1094,23 +1185,25 @@ async function processarImportacaoBase() {
   }
 
   try {
-    const importedBase = await parseBaseSpreadsheet(file);
+    const importedResult = await parseBaseSpreadsheet(file);
+    const rawImportedBase = importedResult?.rawImportedBase || {};
+    const availableDates = Array.isArray(importedResult?.availableDates) ? importedResult.availableDates : [];
 
-    if (!Object.keys(importedBase).length) {
+    if (!Object.keys(rawImportedBase).length) {
       throw new Error("A planilha importada não retornou dados válidos.");
     }
 
-    const currentStore = getSelectedStore();
-    const currentDay = getSelectedDayKey();
-    const normalizedBase = normalizeImportedBase(importedBase);
-
     await clearAllSubmissionData();
+
+    rawImportedBaseCache = rawImportedBase;
+    const normalizedBase = normalizeImportedBase({});
 
     BASE_SALES = normalizedBase;
     visibleProductsIndex = buildVisibleProductsIndex(normalizedBase);
-    const importedFilesMeta = [buildImportedFileMeta(file, normalizedBase)];
+    const importedFilesMeta = [buildImportedFileMeta(file, rawImportedBase, {})];
     localStorage.setItem(ADMIN_BASE_KEY, JSON.stringify(normalizedBase));
     localStorage.setItem(ADMIN_IMPORTED_FILES_KEY, JSON.stringify(importedFilesMeta));
+    localStorage.setItem(ADMIN_RAW_IMPORTED_BASE_KEY, JSON.stringify(rawImportedBase));
 
     if (cloud?.saveAdminBase) {
       await cloud.saveAdminBase(normalizedBase);
@@ -1120,27 +1213,20 @@ async function processarImportacaoBase() {
       await cloud.saveImportedFiles(importedFilesMeta);
     }
 
+    if (cloud?.saveRawImportedBase) {
+      await cloud.saveRawImportedBase(rawImportedBase);
+    }
+
     populateFilters();
     populateAdminStoreFilter();
     populateAdminDateFilter();
+    populateAdminWeekdaySelect();
     renderAdminImportedFiles();
-
-    if ([...$.storeSelect.options].some((option) => option.value === currentStore)) {
-      $.storeSelect.value = currentStore;
-    } else if ($.storeSelect.options.length) {
-      $.storeSelect.value = $.storeSelect.options[0].value;
-    }
-
-    if ([...$.daySelect.options].some((option) => option.value === currentDay)) {
-      $.daySelect.value = currentDay;
-    } else if ($.daySelect.options.length) {
-      $.daySelect.value = $.daySelect.options[0].value;
-    }
-
+    renderAdminReconciliationState();
     renderAll();
     await refreshAdminSummary();
     await renderizarTabelaADM();
-    showStatus("Base importada com sucesso pelo ADM. A planilha anterior foi substituída.");
+    showStatus(`Planilha importada com sucesso. Agora faça a conciliação das ${availableDates.length} data(s) na ADM.`);
   } catch (error) {
     console.error(error);
     showStatus(error?.message || "Não foi possível importar a planilha base no ADM.", true);
@@ -1178,30 +1264,34 @@ async function parseBaseSpreadsheet(file) {
     throw new Error("As colunas esperadas não foram encontradas na planilha.");
   }
 
-  const allowedDays = new Set(DELIVERY_DAYS.map((day) => day.key));
-  const importedBase = {};
+  const rawImportedBase = {};
+  const availableDates = new Set();
 
   rows.forEach((row) => {
     const rawStore = String(row[storeColumn] || "").trim();
     const rawProduct = String(row[productColumn] || "").trim();
-    const dayKey = parseSpreadsheetDate(row[dateColumn]);
+    const sourceDateKey = parseSpreadsheetDate(row[dateColumn]);
     const quantity = sanitizeInteger(row[qtyColumn], 0);
 
-    if (!rawStore || !rawProduct || !allowedDays.has(dayKey)) return;
+    if (!rawStore || !rawProduct || !sourceDateKey) return;
 
     const matchedProduct = matchProduct(rawProduct);
     if (!matchedProduct) return;
 
     const storeKey = findStoreFromParam(rawStore) || findStoreByDisplayName(rawStore) || rawStore;
 
-    importedBase[storeKey] ??= {};
-    importedBase[storeKey][dayKey] ??= {};
+    rawImportedBase[storeKey] ??= {};
+    rawImportedBase[storeKey][sourceDateKey] ??= {};
 
-    const currentValue = Number(importedBase[storeKey][dayKey][matchedProduct] || 0);
-    importedBase[storeKey][dayKey][matchedProduct] = currentValue + quantity;
+    const currentValue = Number(rawImportedBase[storeKey][sourceDateKey][matchedProduct] || 0);
+    rawImportedBase[storeKey][sourceDateKey][matchedProduct] = currentValue + quantity;
+    availableDates.add(sourceDateKey);
   });
 
-  return importedBase;
+  return {
+    rawImportedBase,
+    availableDates: [...availableDates].sort(),
+  };
 }
 
 function getSpreadsheetRows(workbook) {
@@ -1382,16 +1472,20 @@ function buildVisibleProductsIndex(baseSales) {
   return index;
 }
 
-function buildImportedFileMeta(file, normalizedBase) {
-  const storeCount = Object.keys(normalizedBase || {}).filter((storeKey) =>
-    DELIVERY_DAYS.some((day) => PRODUCT_ORDER.some((product) => Number(normalizedBase?.[storeKey]?.[day.key]?.[product] || 0) > 0))
+function buildImportedFileMeta(file, rawImportedBase, dateMappings = {}) {
+  const storeCount = Object.keys(rawImportedBase || {}).filter((storeKey) =>
+    Object.values(rawImportedBase?.[storeKey] || {}).some((products) =>
+      PRODUCT_ORDER.some((product) => Number(products?.[product] || 0) > 0)
+    )
   ).length;
 
   const productSet = new Set();
-  Object.keys(normalizedBase || {}).forEach((storeKey) => {
-    DELIVERY_DAYS.forEach((day) => {
+  const dateSet = new Set();
+  Object.keys(rawImportedBase || {}).forEach((storeKey) => {
+    Object.entries(rawImportedBase?.[storeKey] || {}).forEach(([dateKey, products]) => {
+      dateSet.add(dateKey);
       PRODUCT_ORDER.forEach((product) => {
-        if (Number(normalizedBase?.[storeKey]?.[day.key]?.[product] || 0) > 0) {
+        if (Number(products?.[product] || 0) > 0) {
           productSet.add(product);
         }
       });
@@ -1404,6 +1498,8 @@ function buildImportedFileMeta(file, normalizedBase) {
     importedAt: new Date().toISOString(),
     storeCount,
     productCount: productSet.size,
+    availableDates: [...dateSet].sort(),
+    dateMappings,
   };
 }
 
@@ -1428,6 +1524,87 @@ function renderAdminImportedFiles() {
         </tr>
       `).join("")
     : `<tr><td colspan="5" class="admin-empty">Nenhuma planilha anexada no momento.</td></tr>`;
+
+  renderAdminReconciliationState();
+}
+
+function buildNormalizedBaseFromRawImported(rawImportedBase, dateMappings) {
+  const mappedBase = {};
+
+  Object.entries(rawImportedBase || {}).forEach(([storeKey, dates]) => {
+    Object.entries(dates || {}).forEach(([sourceDateKey, products]) => {
+      const targetDayKey = dateMappings?.[sourceDateKey];
+      if (!DELIVERY_DAYS.some((day) => day.key === targetDayKey)) return;
+
+      mappedBase[storeKey] ??= {};
+      mappedBase[storeKey][targetDayKey] ??= {};
+
+      PRODUCT_ORDER.forEach((product) => {
+        const currentValue = Number(mappedBase[storeKey][targetDayKey][product] || 0);
+        const nextValue = Number(products?.[product] || 0);
+        mappedBase[storeKey][targetDayKey][product] = currentValue + nextValue;
+      });
+    });
+  });
+
+  return normalizeImportedBase(mappedBase);
+}
+
+async function applyImportedDateReconciliation() {
+  if (!isAdminAuthenticated()) {
+    showAdminLoginMessage("Faça o login da ADM para conciliar as datas.", true);
+    return;
+  }
+
+  const importedDate = $.adminImportedDateSelect?.value || "";
+  const targetDayKey = $.adminWeekdaySelect?.value || "";
+  const files = getImportedFilesList();
+  const activeFile = files[0] || null;
+
+  if (!activeFile) {
+    showStatus("Importe uma planilha antes de conciliar as datas.", true);
+    return;
+  }
+
+  if (!importedDate || !targetDayKey) {
+    showStatus("Selecione a data importada e o dia da semana correspondente.", true);
+    return;
+  }
+
+  const nextMappings = {
+    ...(activeFile.dateMappings || {}),
+    [importedDate]: targetDayKey,
+  };
+
+  const nextFiles = [{
+    ...activeFile,
+    dateMappings: nextMappings,
+  }];
+  const normalizedBase = buildNormalizedBaseFromRawImported(rawImportedBaseCache, nextMappings);
+
+  BASE_SALES = normalizedBase;
+  visibleProductsIndex = buildVisibleProductsIndex(normalizedBase);
+  localStorage.setItem(ADMIN_BASE_KEY, JSON.stringify(normalizedBase));
+  localStorage.setItem(ADMIN_IMPORTED_FILES_KEY, JSON.stringify(nextFiles));
+
+  if (cloud?.saveAdminBase) {
+    await cloud.saveAdminBase(normalizedBase);
+  }
+
+  if (cloud?.saveImportedFiles) {
+    await cloud.saveImportedFiles(nextFiles);
+  }
+
+  populateFilters();
+  populateAdminStoreFilter();
+  populateAdminDateFilter();
+  populateAdminWeekdaySelect();
+  renderAdminImportedFiles();
+  renderAdminReconciliationState();
+  renderAll();
+  await refreshAdminSummary();
+  await renderizarTabelaADM();
+  showStatus(`Data ${formatDateKey(importedDate)} vinculada com sucesso a ${getDayLabel(targetDayKey)}.`);
 }
 
 async function clearAllSubmissionData() {
@@ -1459,6 +1636,8 @@ async function handleDeleteImportedFile() {
     visibleProductsIndex = buildVisibleProductsIndex(BASE_SALES);
     localStorage.removeItem(ADMIN_BASE_KEY);
     localStorage.removeItem(ADMIN_IMPORTED_FILES_KEY);
+    localStorage.removeItem(ADMIN_RAW_IMPORTED_BASE_KEY);
+    rawImportedBaseCache = {};
 
     if ($.adminFileInput) {
       $.adminFileInput.value = "";
@@ -1471,7 +1650,9 @@ async function handleDeleteImportedFile() {
     populateFilters();
     populateAdminStoreFilter();
     populateAdminDateFilter();
+    populateAdminWeekdaySelect();
     renderAdminImportedFiles();
+    renderAdminReconciliationState();
     renderAll();
     await refreshAdminSummary();
     await renderizarTabelaADM();
