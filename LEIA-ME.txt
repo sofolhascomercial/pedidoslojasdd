@@ -1,0 +1,10 @@
+Arquivos para subir no GitHub Pages:
+- index.html
+- style.css
+- script.js
+- logo-sofolhas.png
+
+Importante:
+1. Exclua o arquivo antigo 'estilo.css' do repositório.
+2. Mantenha apenas os arquivos acima na raiz do projeto.
+3. Faça upload/substituição desses arquivos e confirme em 'Commit changes'.
