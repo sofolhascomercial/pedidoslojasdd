@@ -103,6 +103,10 @@ body {
   gap: 20px;
 }
 
+.filter-grid-with-percentage {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
 .field-group label {
   display: block;
   font-size: 1.1rem;
@@ -950,39 +954,4 @@ body.modal-open {
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
-}
-
-
-.admin-percentage-input {
-  width: 120px;
-  min-height: 44px;
-  padding: 10px 12px;
-  border: 1px solid #b8ccb8;
-  border-radius: 12px;
-  background: #ffffff;
-  color: var(--green-900);
-  font-size: 1rem;
-  font-weight: 700;
-}
-
-.admin-percentage-input:focus {
-  outline: none;
-  border-color: var(--green-700);
-  box-shadow: 0 0 0 4px rgba(18, 133, 57, 0.14);
-}
-
-.cell-note.is-required {
-  border-color: #b42318;
-  box-shadow: 0 0 0 3px rgba(180, 35, 24, 0.12);
-}
-
-
-.admin-day-label-input {
-  min-width: 220px;
-  text-align: left;
-  font-weight: 700;
-}
-
-.admin-percentage-table td:first-child {
-  width: 34%;
 }

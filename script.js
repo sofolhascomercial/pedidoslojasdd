@@ -2,15 +2,12 @@ let BASE_SALES = {"Aparecida de Goiânia (GO)":{"2025-04-15":{"AGRIAO SO FOLHAS"
 const STORE_DISPLAY_NAMES = {"Aparecida de Goiânia (GO)":"Dia a Dia Aparecida de Goiânia","Avenida Rio Verde (GO)":"Dia a Dia Avenida Rio Verde","Balneário (GO)":"Dia a Dia Balneário","Ceilândia BR70 (DF)":"Dia a Dia Ceilândia BR70","Ceilândia Centro (DF)":"Dia a Dia Ceilândia Centro","Ceilândia Sul (DF)":"Dia a Dia Ceilândia Sul","César Lattes (GO)":"Dia a Dia César Lattes","Formosa (GO)":"Dia a Dia Formosa","Gama (DF)":"Dia a Dia Gama","Goianésia (GO)":"Dia a Dia Goianésia","Guará II (DF)":"Dia a Dia Guará II","Gurupi (TO)":"Dia a Dia Gurupi","Jardim botânico (DF)":"Dia a Dia Jardim botânico","Luziânia (GO)":"Dia a Dia Luziânia","Luís Eduardo Magalhães (BA)":"Dia a Dia Luís Eduardo Magalhães","Mestre D'armas (DF)":"Dia a Dia Mestre D'armas","Novo Gama (GO)":"Dia a Dia Novo Gama","Planaltina (DF )":"Dia a Dia Planaltina (DF)","Planaltina (GO)":"Dia a Dia Planaltina (GO)","Recanto das Emas (DF)":"Dia a Dia Recanto das Emas","Riacho Fundo 1 (DF)":"Dia a Dia Riacho Fundo 1","SIA (DF)":"Dia a Dia SIA","Samambaia (DF)":"Dia a Dia Samambaia","Santo Antônio do Descoberto (GO)":"Dia a Dia Santo Antônio do Descoberto","Sobradinho (DF)":"Dia a Dia Sobradinho","Taguatinga (DF)":"Dia a Dia Taguatinga","Vicente Pires  Rua 12(DF)":"Dia a Dia Vicente Pires Rua 12","Vicente Pires EPTG (DF)":"Dia a Dia Vicente Pires EPTG","Vicente Pires Rua 4A (DF)":"Dia a Dia Vicente Pires Rua 4A","Águas Claras (DF)":"Dia a Dia Águas Claras","Águas Lindas (GO)":"Dia a Dia Águas Lindas"};
 const PRODUCT_ORDER = ["AGRIAO SO FOLHAS", "ALECRIM SO FOLHAS", "ALFACE AMER SO FOLHAS BDJ AMERICANA", "ALFACE AMER SO FOLHAS", "ALFACE CRESPA SO FOLHAS", "ALFACE ROXA SO FOLHAS", "ALFACE LISA SO FOLHAS", "ALFACE MIMOSA SO FOLHAS", "ALMEIRAO SO FOLHAS UN", "ABOBORA ITALIA SO FOLHAS BDJ 300G", "ACELGA SO FOLHAS", "RUCULA SO FOLHAS", "MANJERICAO SO FOLHAS", "HORTELA SO FOLHAS", "SALSA SO FOLHAS", "SALSAO SO FOLHAS", "CHEIRO VERDE SO FOLHAS", "COENTRO SO FOLHAS", "BROCOLIS SO FOLHAS AMERICANO", "BROCOLIS SO FOLHAS", "CEBOLINHA SO FOLHAS", "COUVE SO FOLHAS PICADA", "COUVE SO FOLHAS", "ESPINAFRE SO FOLHAS"];
 const SORTED_PRODUCT_ORDER = [...PRODUCT_ORDER].sort((a, b) => a.localeCompare(b, "pt-BR"));
-let DELIVERY_DAYS = buildDeliveryDaysFromBase(BASE_SALES);
+const DELIVERY_DAYS = [{"key": "2025-04-15", "label": "Terça-Feira"}, {"key": "2025-04-16", "label": "Quarta-Feira"}, {"key": "2025-04-17", "label": "Quinta-Feira"}, {"key": "2025-04-18", "label": "Sexta-Feira"}, {"key": "2025-04-19", "label": "Sábado"}, {"key": "2025-04-20", "label": "Domingo"}];
 
 const STORAGE_KEY = "sofolhas_semana_santa_submissoes_v1";
 const DRAFT_KEY = "sofolhas_semana_santa_rascunhos_v1";
 const ADMIN_BASE_KEY = "sofolhas_semana_santa_base_adm_v1";
 const ADMIN_IMPORTED_FILES_KEY = "sofolhas_semana_santa_arquivos_adm_v1";
-const ADMIN_PERCENTAGES_KEY = "sofolhas_semana_santa_percentuais_adm_v1";
-const ADMIN_DAY_LABELS_KEY = "sofolhas_comercial_labels_dia_adm_v1";
-const DEFAULT_COMMERCIAL_PERCENT = 40;
 const ADMIN_SESSION_KEY = "sofolhas_semana_santa_admin_session_v1";
 const ADMIN_LOGIN = "richard.martins";
 const ADMIN_PASSWORD = "sofolhas2026";
@@ -49,18 +46,20 @@ const FIREBASE_CONFIG = {
 const REALTIME_DB_PATH = "sugestoes_semana_santa";
 const REALTIME_DB_SUBMISSIONS_PATH = `${REALTIME_DB_PATH}/submissoes`;
 const REALTIME_DB_ADMIN_PATH = `${REALTIME_DB_PATH}/admin`;
+const DEFAULT_INCREASE_PERCENT = 40;
 
 const $ = {
   storeSelect: document.getElementById("storeSelect"),
   daySelect: document.getElementById("daySelect"),
+  increasePercentSelect: document.getElementById("increasePercentSelect"),
   selectedStoreName: document.getElementById("selectedStoreName"),
   selectedDayName: document.getElementById("selectedDayName"),
   totalSold: document.getElementById("totalSold"),
   totalSoFolhas: document.getElementById("totalSoFolhas"),
   totalStore: document.getElementById("totalStore"),
   totalSoFolhasPercentLabel: document.getElementById("totalSoFolhasPercentLabel"),
+  soFolhasHeaderLabel: document.getElementById("soFolhasHeaderLabel"),
   heroSuggestionText: document.getElementById("heroSuggestionText"),
-  commercialSuggestionHeader: document.getElementById("commercialSuggestionHeader"),
   tableDayLabel: document.getElementById("tableDayLabel"),
   tableBody: document.getElementById("tableBody"),
   responsavelInput: document.getElementById("responsavelInput"),
@@ -72,9 +71,6 @@ const $ = {
   adminFileInput: document.getElementById("adminFileInput"),
   adminImportButton: document.getElementById("adminImportButton"),
   adminRefreshButton: document.getElementById("adminRefreshButton"),
-  adminSavePercentagesButton: document.getElementById("adminSavePercentagesButton"),
-  adminPercentageBody: document.getElementById("adminPercentageBody"),
-  adminPercentageMeta: document.getElementById("adminPercentageMeta"),
   adminFileName: document.getElementById("adminFileName"),
   adminFilesBody: document.getElementById("adminFilesBody"),
   adminFilesMeta: document.getElementById("adminFilesMeta"),
@@ -114,21 +110,16 @@ let appInitialized = false;
 let visibleProductsIndex = buildVisibleProductsIndex(BASE_SALES);
 let realtimeBindingsStarted = false;
 let currentAdminViewedSubmissionId = "";
-let adminDayPercentages = createDefaultAdminPercentages();
-let adminDayLabels = createDefaultAdminDayLabels();
 
 async function initApp() {
   if (appInitialized) return;
   appInitialized = true;
 
   loadPersistedAdminBase();
-  loadPersistedAdminPercentages();
-  loadPersistedAdminDayLabels();
   populateFilters();
   populateAdminStoreFilter();
   populateAdminDateFilter();
   applyInitialSelection();
-  renderAdminPercentageTable();
   attachEvents();
   syncAdminAuthUI();
   switchAdminTab("import");
@@ -204,7 +195,7 @@ function populateAdminDateFilter() {
 function applyInitialSelection() {
   const params = new URLSearchParams(window.location.search);
   const defaultStore = findStoreFromParam(params.get("loja") || params.get("store")) || "Ceilândia Centro (DF)";
-  const defaultDay = findDayFromParam(params.get("dia") || params.get("day")) || DELIVERY_DAYS[1]?.key || DELIVERY_DAYS[0]?.key || "";
+  const defaultDay = findDayFromParam(params.get("dia") || params.get("day")) || "2025-04-16";
 
   if ([...$.storeSelect.options].some((option) => option.value === defaultStore)) {
     $.storeSelect.value = defaultStore;
@@ -218,243 +209,12 @@ function applyInitialSelection() {
     }
   }
 
+  if ($.increasePercentSelect) {
+    $.increasePercentSelect.value = String(DEFAULT_INCREASE_PERCENT);
+  }
+
   syncDaySelectMode();
-}
-
-
-
-function getWeekdayLabelFromDate(dayKey) {
-  if (!dayKey) return "";
-  const [year, month, day] = String(dayKey).split("-").map(Number);
-  if (!year || !month || !day) return String(dayKey);
-  const date = new Date(year, month - 1, day);
-  const labels = ["Domingo", "Segunda-Feira", "Terça-Feira", "Quarta-Feira", "Quinta-Feira", "Sexta-Feira", "Sábado"];
-  return labels[date.getDay()] || String(dayKey);
-}
-
-function buildDeliveryDaysFromBase(baseSales) {
-  const daySet = new Set();
-  Object.values(baseSales || {}).forEach((days) => {
-    Object.keys(days || {}).forEach((dayKey) => {
-      if (dayKey) daySet.add(dayKey);
-    });
-  });
-
-  const dayKeys = [...daySet].sort();
-  if (!dayKeys.length) {
-    return [
-      { key: "2025-04-15", label: "Terça-Feira" },
-      { key: "2025-04-16", label: "Quarta-Feira" },
-      { key: "2025-04-17", label: "Quinta-Feira" },
-      { key: "2025-04-18", label: "Sexta-Feira" },
-      { key: "2025-04-19", label: "Sábado" },
-      { key: "2025-04-20", label: "Domingo" },
-    ];
-  }
-
-  return dayKeys.map((dayKey) => ({ key: dayKey, label: getWeekdayLabelFromDate(dayKey) }));
-}
-
-function createDefaultAdminDayLabels() {
-  return Object.fromEntries(DELIVERY_DAYS.map((day) => [day.key, day.label || getWeekdayLabelFromDate(day.key)]));
-}
-
-function normalizeAdminDayLabels(rawConfig) {
-  const base = createDefaultAdminDayLabels();
-  if (!rawConfig || typeof rawConfig !== "object") return base;
-  Object.entries(rawConfig).forEach(([dayKey, value]) => {
-    if (Object.prototype.hasOwnProperty.call(base, dayKey)) {
-      const label = String(value || "").trim();
-      base[dayKey] = label || getWeekdayLabelFromDate(dayKey);
-    }
-  });
-  return base;
-}
-
-function refreshDeliveryDaysConfig() {
-  DELIVERY_DAYS = buildDeliveryDaysFromBase(BASE_SALES).map((day) => ({
-    key: day.key,
-    label: adminDayLabels?.[day.key] || day.label || getWeekdayLabelFromDate(day.key),
-  }));
-  adminDayPercentages = normalizeAdminPercentages(adminDayPercentages);
-  adminDayLabels = normalizeAdminDayLabels(adminDayLabels);
-}
-
-function loadPersistedAdminDayLabels() {
-  const saved = readJson(ADMIN_DAY_LABELS_KEY);
-  adminDayLabels = normalizeAdminDayLabels(saved);
-  refreshDeliveryDaysConfig();
-}
-
-function getAdminDayLabel(dayKey) {
-  return String(adminDayLabels?.[dayKey] || getWeekdayLabelFromDate(dayKey) || dayKey || "");
-}
-
-
-function createDefaultAdminPercentages() {
-  return Object.fromEntries(DELIVERY_DAYS.map((day) => [day.key, DEFAULT_COMMERCIAL_PERCENT]));
-}
-
-function normalizeAdminPercentages(rawConfig) {
-  const base = createDefaultAdminPercentages();
-  if (!rawConfig || typeof rawConfig !== "object") return base;
-  Object.entries(rawConfig).forEach(([dayKey, value]) => {
-    if (Object.prototype.hasOwnProperty.call(base, dayKey)) {
-      base[dayKey] = Math.max(0, sanitizeInteger(value, DEFAULT_COMMERCIAL_PERCENT));
-    }
-  });
-  return base;
-}
-
-function loadPersistedAdminPercentages() {
-  const saved = readJson(ADMIN_PERCENTAGES_KEY);
-  adminDayPercentages = normalizeAdminPercentages(saved);
-  refreshDeliveryDaysConfig();
-}
-
-function getAdminPercentForDay(dayKey) {
-  return Math.max(0, sanitizeInteger(adminDayPercentages?.[dayKey], DEFAULT_COMMERCIAL_PERCENT));
-}
-
-function getSelectedPercentLabel() {
-  const selectedDayKeys = getSelectedDayKeys();
-  if (!selectedDayKeys.length) return "Configuração ADM";
-  const percents = [...new Set(selectedDayKeys.map((dayKey) => getAdminPercentForDay(dayKey)))];
-  if (percents.length === 1) {
-    return `(+${percents[0]}%)`;
-  }
-  return "Configuração ADM variável";
-}
-
-function refreshCommercialSuggestionUI() {
-  const percentLabel = getSelectedPercentLabel();
-  if ($.totalSoFolhasPercentLabel) {
-    $.totalSoFolhasPercentLabel.textContent = percentLabel;
-  }
-  if ($.commercialSuggestionHeader) {
-    $.commercialSuggestionHeader.innerHTML = `Sugestão Comercial<br />${escapeHtml(percentLabel)}`;
-  }
-  if ($.heroSuggestionText) {
-    const selectedDayKeys = getSelectedDayKeys();
-    const percents = [...new Set(selectedDayKeys.map((dayKey) => getAdminPercentForDay(dayKey)))];
-    if (percents.length === 1) {
-      $.heroSuggestionText.textContent = `Sugestão Comercial: ${percents[0]}% acima da venda do dia (configurado pela ADM)`;
-    } else {
-      $.heroSuggestionText.textContent = "Sugestão Comercial: percentuais configurados pela ADM";
-    }
-  }
-}
-
-function getCommercialSuggestionForProduct(storeKey, dayKeys, product) {
-  return (dayKeys || []).reduce((sum, dayKey) => {
-    const baseSale = Number(BASE_SALES[storeKey]?.[dayKey]?.[product] || 0);
-    const multiplier = 1 + (getAdminPercentForDay(dayKey) / 100);
-    return sum + Math.ceil(baseSale * multiplier);
-  }, 0);
-}
-
-function renderAdminPercentageTable() {
-  if (!$.adminPercentageBody) return;
-  $.adminPercentageBody.innerHTML = DELIVERY_DAYS.map((day) => `
-    <tr>
-      <td>
-        <input
-          class="admin-percentage-input admin-day-label-input"
-          type="text"
-          value="${escapeAttribute(getAdminDayLabel(day.key))}"
-          data-role="admin-day-label"
-          data-day-key="${escapeAttribute(day.key)}"
-        />
-      </td>
-      <td>${escapeHtml(formatDateKey(day.key))}</td>
-      <td>
-        <input
-          class="admin-percentage-input"
-          type="number"
-          min="0"
-          step="1"
-          inputmode="numeric"
-          value="${getAdminPercentForDay(day.key)}"
-          data-role="admin-day-percent"
-          data-day-key="${escapeAttribute(day.key)}"
-        />
-      </td>
-    </tr>
-  `).join("");
-
-  if ($.adminPercentageMeta) {
-    $.adminPercentageMeta.textContent = "Percentuais ativos por dia da venda.";
-  }
-}
-
-function collectAdminPercentageConfigFromScreen() {
-  const result = createDefaultAdminPercentages();
-  $.adminPercentageBody?.querySelectorAll('[data-role="admin-day-percent"]').forEach((input) => {
-    result[input.dataset.dayKey] = Math.max(0, sanitizeInteger(input.value, DEFAULT_COMMERCIAL_PERCENT));
-  });
-  return result;
-}
-
-function collectAdminDayLabelsFromScreen() {
-  const result = createDefaultAdminDayLabels();
-  $.adminPercentageBody?.querySelectorAll('[data-role="admin-day-label"]').forEach((input) => {
-    result[input.dataset.dayKey] = String(input.value || "").trim() || getWeekdayLabelFromDate(input.dataset.dayKey);
-  });
-  return result;
-}
-
-async function saveAdminPercentages() {
-  if (!isAdminAuthenticated()) {
-    showAdminLoginMessage("Faça o login da ADM para salvar os percentuais.", true);
-    syncAdminAuthUI();
-    return;
-  }
-
-  try {
-    const nextConfig = normalizeAdminPercentages(collectAdminPercentageConfigFromScreen());
-    const nextLabels = normalizeAdminDayLabels(collectAdminDayLabelsFromScreen());
-    adminDayPercentages = nextConfig;
-    adminDayLabels = nextLabels;
-    localStorage.setItem(ADMIN_PERCENTAGES_KEY, JSON.stringify(nextConfig));
-    localStorage.setItem(ADMIN_DAY_LABELS_KEY, JSON.stringify(nextLabels));
-    refreshDeliveryDaysConfig();
-    if (cloud?.saveAdminPercentages) {
-      await cloud.saveAdminPercentages(nextConfig);
-    }
-    if (cloud?.saveAdminDayLabels) {
-      await cloud.saveAdminDayLabels(nextLabels);
-    }
-    renderAdminPercentageTable();
-    refreshCommercialSuggestionUI();
-    renderAll();
-    await refreshAdminSummary();
-    await renderizarTabelaADM();
-    showStatus("Percentuais comerciais salvos com sucesso.");
-  } catch (error) {
-    console.error(error);
-    showStatus("Não foi possível salvar os percentuais comerciais agora.", true);
-  }
-}
-
-function validateRequiredJustifications() {
-  const rows = [...$.tableBody.querySelectorAll("tr")].filter((tr) => tr.querySelector('[data-role="store-suggestion"]'));
-  for (const tr of rows) {
-    const suggested = Number(tr.dataset.suggested || 0);
-    const storeInput = tr.querySelector('[data-role="store-suggestion"]');
-    const noteInput = tr.querySelector('[data-role="observation"]');
-    if (!storeInput || !noteInput) continue;
-    const storeSuggestion = sanitizeInteger(storeInput.value, 0);
-    const note = noteInput.value.trim();
-    const justificationRequired = storeSuggestion !== suggested;
-    noteInput.classList.toggle("is-required", justificationRequired && !note);
-    if (justificationRequired && !note) {
-      const direction = storeSuggestion < suggested ? "menor" : "maior";
-      showStatus(`A justificativa é obrigatória quando a sugestão da loja for ${direction} que a sugestão comercial.`, true);
-      noteInput.focus();
-      return false;
-    }
-  }
-  return true;
+  refreshSuggestionPercentageUI();
 }
 
 
@@ -470,6 +230,12 @@ function attachEvents() {
     persistDraftFromScreen();
     renderAll();
     updateUrlParams();
+  });
+
+  $.increasePercentSelect?.addEventListener("change", () => {
+    refreshSuggestionPercentageUI();
+    persistDraftFromScreen();
+    renderAll();
   });
 
   $.responsavelInput?.addEventListener("input", () => {
@@ -529,7 +295,6 @@ function bindAdminEvents() {
     populateAdminStoreFilter();
     populateAdminDateFilter();
     renderAdminImportedFiles();
-    renderAdminPercentageTable();
     renderAll();
     await refreshAdminSummary();
     await renderizarTabelaADM();
@@ -660,10 +425,11 @@ function handleAdminTabClick(tab) {
 }
 
 function renderAll() {
-  refreshCommercialSuggestionUI();
   const storeKey = getSelectedStore();
   const dayKeys = getSelectedDayKeys();
   const dayLabelText = getSelectedDayLabelText();
+
+  refreshSuggestionPercentageUI();
 
   $.selectedStoreName.textContent = getDisplayStoreName(storeKey);
   $.selectedDayName.textContent = dayLabelText;
@@ -673,7 +439,7 @@ function renderAll() {
   const productsToShow = [...new Set(dayKeys.flatMap((dayKey) => getRenderableProducts(storeKey, dayKey)))].sort((a, b) => a.localeCompare(b, "pt-BR"));
   const rows = productsToShow.map((product) => {
     const baseSale = dayKeys.reduce((sum, dayKey) => sum + Number(BASE_SALES[storeKey]?.[dayKey]?.[product] || 0), 0);
-    const suggested = getCommercialSuggestionForProduct(storeKey, dayKeys, product);
+    const suggested = getSoFolhasSuggestion(baseSale);
 
     return {
       product,
@@ -725,9 +491,6 @@ function renderAll() {
 function bindRowEvents() {
   $.tableBody.querySelectorAll(".cell-input, .cell-note").forEach((field) => {
     field.addEventListener("input", () => {
-      if (field.matches('[data-role="observation"]')) {
-        field.classList.remove("is-required");
-      }
       updateTotals();
       persistDraftFromScreen();
     });
@@ -759,7 +522,6 @@ function collectRowsFromScreen() {
       suggested,
       storeSuggestion,
       observation,
-      justificationRequired: storeSuggestion !== suggested,
     };
   });
 }
@@ -771,8 +533,8 @@ function persistDraftFromScreen() {
   drafts[getSelectionKey()] = {
     loja: getSelectedStore(),
     dia: getSelectedDayValueForStorage(),
+    percentualAumento: getSelectedIncreasePercent(),
     responsavel: $.responsavelInput.value.trim(),
-    percentualPorDia: Object.fromEntries(getSelectedDayKeys().map((dayKey) => [dayKey, getAdminPercentForDay(dayKey)])),
     items: collectRowsFromScreen(),
     updatedAt: new Date().toISOString(),
   };
@@ -801,17 +563,13 @@ async function onSave() {
     return;
   }
 
-  if (!validateRequiredJustifications()) {
-    return;
-  }
-
   const payload = {
     loja: getSelectedStore(),
     lojaExibicao: getDisplayStoreName(getSelectedStore()),
     dia: getSelectedDayValueForStorage(),
     diaSemana: getDayLabel(getSelectedDayKey()),
+    percentualAumento: getSelectedIncreasePercent(),
     responsavel,
-    percentualPorDia: Object.fromEntries(getSelectedDayKeys().map((dayKey) => [dayKey, getAdminPercentForDay(dayKey)])),
     totalVendido: items.reduce((sum, row) => sum + row.baseSale, 0),
     totalSoFolhas: items.reduce((sum, row) => sum + row.suggested, 0),
     totalLoja: items.reduce((sum, row) => sum + row.storeSuggestion, 0),
@@ -909,12 +667,6 @@ async function initCloud() {
       saveImportedFiles: async (files) => {
         await databaseModule.set(databaseModule.child(adminRef, 'importedFiles'), files || []);
       },
-      saveAdminPercentages: async (config) => {
-        await databaseModule.set(databaseModule.child(adminRef, 'percentuaisDia'), config || createDefaultAdminPercentages());
-      },
-      saveAdminDayLabels: async (config) => {
-        await databaseModule.set(databaseModule.child(adminRef, 'labelsDia'), config || createDefaultAdminDayLabels());
-      },
       loadImportedFiles: async () => {
         if (cloud && Array.isArray(cloud.importedFilesCache)) {
           return cloud.importedFilesCache;
@@ -922,20 +674,10 @@ async function initCloud() {
         const snapshot = await databaseModule.get(databaseModule.child(adminRef, 'importedFiles'));
         return snapshot.exists() ? snapshot.val() : [];
       },
-      loadAdminPercentages: async () => {
-        const snapshot = await databaseModule.get(databaseModule.child(adminRef, 'percentuaisDia'));
-        return snapshot.exists() ? snapshot.val() : createDefaultAdminPercentages();
-      },
-      loadAdminDayLabels: async () => {
-        const snapshot = await databaseModule.get(databaseModule.child(adminRef, 'labelsDia'));
-        return snapshot.exists() ? snapshot.val() : createDefaultAdminDayLabels();
-      },
       clearAdminState: async () => {
         await Promise.all([
           databaseModule.remove(databaseModule.child(adminRef, 'base')),
           databaseModule.remove(databaseModule.child(adminRef, 'importedFiles')),
-          databaseModule.remove(databaseModule.child(adminRef, 'percentuaisDia')),
-          databaseModule.remove(databaseModule.child(adminRef, 'labelsDia')),
         ]);
       },
       bindRealtime: () => {
@@ -961,15 +703,12 @@ async function initCloud() {
           const cloudBase = snapshot.exists() ? snapshot.val() : {};
           cloud.adminBaseCache = cloudBase;
           if (cloudBase && typeof cloudBase === 'object' && Object.keys(cloudBase).length) {
-            DELIVERY_DAYS = buildDeliveryDaysFromBase(cloudBase);
             BASE_SALES = normalizeImportedBase(cloudBase);
             localStorage.setItem(ADMIN_BASE_KEY, JSON.stringify(cloudBase));
           } else {
-            DELIVERY_DAYS = buildDeliveryDaysFromBase(ORIGINAL_BASE_SALES);
             BASE_SALES = normalizeImportedBase({});
             localStorage.removeItem(ADMIN_BASE_KEY);
           }
-          refreshDeliveryDaysConfig();
           visibleProductsIndex = buildVisibleProductsIndex(BASE_SALES);
           populateFilters();
           populateAdminStoreFilter();
@@ -991,35 +730,6 @@ async function initCloud() {
         }, (error) => {
           console.error('Falha ao sincronizar planilhas anexadas em tempo real:', error);
         });
-
-        databaseModule.onValue(databaseModule.child(adminRef, 'percentuaisDia'), (snapshot) => {
-          const config = snapshot.exists() ? snapshot.val() : createDefaultAdminPercentages();
-          adminDayPercentages = normalizeAdminPercentages(config);
-          localStorage.setItem(ADMIN_PERCENTAGES_KEY, JSON.stringify(adminDayPercentages));
-          refreshDeliveryDaysConfig();
-          renderAdminPercentageTable();
-          refreshCommercialSuggestionUI();
-          renderAll();
-          refreshAdminSummary().catch(console.error);
-          renderizarTabelaADM().catch(console.error);
-        }, (error) => {
-          console.error('Falha ao sincronizar percentuais da ADM em tempo real:', error);
-        });
-
-        databaseModule.onValue(databaseModule.child(adminRef, 'labelsDia'), (snapshot) => {
-          const config = snapshot.exists() ? snapshot.val() : createDefaultAdminDayLabels();
-          adminDayLabels = normalizeAdminDayLabels(config);
-          localStorage.setItem(ADMIN_DAY_LABELS_KEY, JSON.stringify(adminDayLabels));
-          refreshDeliveryDaysConfig();
-          populateFilters();
-          populateAdminDateFilter();
-          renderAdminPercentageTable();
-          renderAll();
-          refreshAdminSummary().catch(console.error);
-          renderizarTabelaADM().catch(console.error);
-        }, (error) => {
-          console.error('Falha ao sincronizar nomes dos dias da ADM em tempo real:', error);
-        });
       },
     };
 
@@ -1034,15 +744,12 @@ async function hydrateAdminStateFromCloud() {
   if (!cloud) return;
 
   try {
-    const [cloudBase, cloudImportedFiles, cloudPercentages, cloudDayLabels] = await Promise.all([
+    const [cloudBase, cloudImportedFiles] = await Promise.all([
       cloud.loadAdminBase?.(),
       cloud.loadImportedFiles?.(),
-      cloud.loadAdminPercentages?.(),
-      cloud.loadAdminDayLabels?.(),
     ]);
 
     if (cloudBase && typeof cloudBase === 'object' && Object.keys(cloudBase).length) {
-      DELIVERY_DAYS = buildDeliveryDaysFromBase(cloudBase);
       BASE_SALES = normalizeImportedBase(cloudBase);
       visibleProductsIndex = buildVisibleProductsIndex(BASE_SALES);
       localStorage.setItem(ADMIN_BASE_KEY, JSON.stringify(cloudBase));
@@ -1051,22 +758,38 @@ async function hydrateAdminStateFromCloud() {
     if (Array.isArray(cloudImportedFiles)) {
       localStorage.setItem(ADMIN_IMPORTED_FILES_KEY, JSON.stringify(cloudImportedFiles));
     }
-
-    if (cloudPercentages && typeof cloudPercentages === 'object') {
-      adminDayPercentages = normalizeAdminPercentages(cloudPercentages);
-      localStorage.setItem(ADMIN_PERCENTAGES_KEY, JSON.stringify(adminDayPercentages));
-    }
-
-    renderAdminPercentageTable();
-    refreshCommercialSuggestionUI();
   } catch (error) {
     console.error('Falha ao carregar a base da ADM da nuvem:', error);
   }
 }
 
-function getSoFolhasSuggestion(baseSale, dayKey = "") {
-  const multiplier = 1 + (getAdminPercentForDay(dayKey) / 100);
-  return Math.ceil(Number(baseSale || 0) * multiplier);
+function getSelectedIncreasePercent() {
+  return sanitizeInteger($.increasePercentSelect?.value, DEFAULT_INCREASE_PERCENT);
+}
+
+function getSoFolhasMultiplier() {
+  return 1 + (getSelectedIncreasePercent() / 100);
+}
+
+function refreshSuggestionPercentageUI() {
+  const percent = getSelectedIncreasePercent();
+  const label = `(+${percent}%)`;
+
+  if ($.totalSoFolhasPercentLabel) {
+    $.totalSoFolhasPercentLabel.textContent = label;
+  }
+
+  if ($.soFolhasHeaderLabel) {
+    $.soFolhasHeaderLabel.innerHTML = `Sugestão Só Folhas<br />${label}`;
+  }
+
+  if ($.heroSuggestionText) {
+    $.heroSuggestionText.textContent = `Sugestão Só Folhas: ${percent}% acima da venda do dia`;
+  }
+}
+
+function getSoFolhasSuggestion(baseSale) {
+  return Math.ceil(Number(baseSale || 0) * getSoFolhasMultiplier());
 }
 
 function getSelectionKey() {
@@ -1122,7 +845,7 @@ function syncDaySelectMode() {
 }
 
 function getDayLabel(dayKey) {
-  return getAdminDayLabel(dayKey) || DELIVERY_DAYS.find((day) => day.key === dayKey)?.label || "";
+  return DELIVERY_DAYS.find((day) => day.key === dayKey)?.label || "";
 }
 
 function formatDateKey(dayKey) {
@@ -1302,7 +1025,6 @@ function abrirADM() {
         populateAdminStoreFilter();
         populateAdminDateFilter();
         renderAdminImportedFiles();
-        renderAdminPercentageTable();
         renderAll();
         return refreshAdminSummary();
       })
@@ -1363,7 +1085,6 @@ window.showAdminDataTab = async () => {
 };
 window.exportAdminSummary = exportarResumoADM;
 window.exportAdminFilledData = exportarDadosPreenchidosADM;
-window.saveAdminCommercialPercentages = saveAdminPercentages;
 
 async function processarImportacaoBase() {
   const file = $.adminFileInput?.files?.[0];
@@ -1381,16 +1102,11 @@ async function processarImportacaoBase() {
 
     const currentStore = getSelectedStore();
     const currentDay = getSelectedDayKey();
-
-    DELIVERY_DAYS = buildDeliveryDaysFromBase(importedBase);
-    adminDayPercentages = normalizeAdminPercentages(adminDayPercentages);
-    adminDayLabels = normalizeAdminDayLabels(adminDayLabels);
     const normalizedBase = normalizeImportedBase(importedBase);
 
     await clearAllSubmissionData();
 
     BASE_SALES = normalizedBase;
-    refreshDeliveryDaysConfig();
     visibleProductsIndex = buildVisibleProductsIndex(normalizedBase);
     const importedFilesMeta = [buildImportedFileMeta(file, normalizedBase)];
     localStorage.setItem(ADMIN_BASE_KEY, JSON.stringify(normalizedBase));
@@ -1462,6 +1178,7 @@ async function parseBaseSpreadsheet(file) {
     throw new Error("As colunas esperadas não foram encontradas na planilha.");
   }
 
+  const allowedDays = new Set(DELIVERY_DAYS.map((day) => day.key));
   const importedBase = {};
 
   rows.forEach((row) => {
@@ -1470,7 +1187,7 @@ async function parseBaseSpreadsheet(file) {
     const dayKey = parseSpreadsheetDate(row[dateColumn]);
     const quantity = sanitizeInteger(row[qtyColumn], 0);
 
-    if (!rawStore || !rawProduct || !dayKey) return;
+    if (!rawStore || !rawProduct || !allowedDays.has(dayKey)) return;
 
     const matchedProduct = matchProduct(rawProduct);
     if (!matchedProduct) return;
@@ -1738,16 +1455,10 @@ async function handleDeleteImportedFile() {
     if (cloud?.clearAdminState) {
       await cloud.clearAdminState();
     }
-    DELIVERY_DAYS = buildDeliveryDaysFromBase(ORIGINAL_BASE_SALES);
     BASE_SALES = normalizeImportedBase({});
     visibleProductsIndex = buildVisibleProductsIndex(BASE_SALES);
     localStorage.removeItem(ADMIN_BASE_KEY);
     localStorage.removeItem(ADMIN_IMPORTED_FILES_KEY);
-    localStorage.removeItem(ADMIN_PERCENTAGES_KEY);
-    localStorage.removeItem(ADMIN_DAY_LABELS_KEY);
-    adminDayPercentages = createDefaultAdminPercentages();
-    adminDayLabels = createDefaultAdminDayLabels();
-    refreshDeliveryDaysConfig();
 
     if ($.adminFileInput) {
       $.adminFileInput.value = "";
@@ -1786,7 +1497,7 @@ async function getAdminSummaryRows() {
         }, 0);
 
         const totalSoFolhas = PRODUCT_ORDER.reduce((sum, product) => {
-          return sum + getSoFolhasSuggestion(Number(BASE_SALES[storeKey]?.[day.key]?.[product] || 0), day.key);
+          return sum + getSoFolhasSuggestion(Number(BASE_SALES[storeKey]?.[day.key]?.[product] || 0));
         }, 0);
 
         const submission = submissions.find((item) =>
@@ -2157,7 +1868,7 @@ async function exportarResumoADM() {
         Loja: row.loja,
         Dia: row.dia,
         "Total Vendido": row.totalVendido,
-        "Sugestão Comercial": row.totalSoFolhas,
+        "Sugestão Só Folhas": row.totalSoFolhas,
         "Sugestão da Loja": row.totalLoja === "" ? "" : row.totalLoja,
         Responsável: row.responsavel,
         "Último envio": formatDateTime(row.updatedAt),
@@ -2183,10 +1894,10 @@ async function exportarDadosPreenchidosADM() {
         Dia: row.dia,
         Responsável: row.responsavel,
         Produto: row.produto,
-        "Base comparada": row.baseSale,
-        "Sugestão Comercial": row.suggested,
+        "Venda Ano Passado": row.baseSale,
+        "Sugestão Só Folhas": row.suggested,
         "Sugestão da Loja": row.storeSuggestion,
-        Justificativa: row.observation,
+        Observação: row.observation,
         "Último envio": formatDateTime(row.updatedAt),
       })),
       "dados-preenchidos-semana-santa.xlsx"

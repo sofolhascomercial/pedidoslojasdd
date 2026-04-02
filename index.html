@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Só Folhas | Sugestão de Pedido Comercial</title>
+  <title>Só Folhas | Semana Santa - Sugestão de Pedido</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -17,10 +17,10 @@
       </div>
 
       <div class="hero-copy">
-        <h1>Sugestão de Pedido Comercial</h1>
+        <h1>Semana Santa - Sugestão de Pedido</h1>
         <p>
-          Base: Venda comparada ao mesmo período |
-          <strong id="heroSuggestionText">Sugestão Comercial: percentual configurado pela ADM</strong>
+          Base: Venda faturada no ano passado |
+          <strong id="heroSuggestionText">Sugestão Só Folhas: 40% acima da venda do dia</strong>
         </p>
       </div>
     </header>
@@ -30,15 +30,37 @@
     </button>
 
     <section class="filter-card">
-      <div class="filter-grid">
+      <div class="filter-grid filter-grid-with-percentage">
         <div class="field-group">
           <label for="storeSelect">1. Selecione a Loja</label>
           <select id="storeSelect" aria-label="Selecione a loja"></select>
         </div>
 
         <div class="field-group">
-          <label for="daySelect">2. Selecione o Dia da Base</label>
-          <select id="daySelect" aria-label="Selecione o dia da base"></select>
+          <label for="daySelect">2. Selecione o Dia da Entrega</label>
+          <select id="daySelect" aria-label="Selecione o dia da entrega"></select>
+        </div>
+
+        <div class="field-group">
+          <label for="increasePercentSelect">3. % de aumento da Sugestão Só Folhas</label>
+          <select id="increasePercentSelect" aria-label="Selecione a porcentagem de aumento da sugestão Só Folhas">
+            <option value="0">0%</option>
+            <option value="5">5%</option>
+            <option value="10">10%</option>
+            <option value="15">15%</option>
+            <option value="20">20%</option>
+            <option value="25">25%</option>
+            <option value="30">30%</option>
+            <option value="35">35%</option>
+            <option value="40" selected>40%</option>
+            <option value="45">45%</option>
+            <option value="50">50%</option>
+            <option value="60">60%</option>
+            <option value="70">70%</option>
+            <option value="80">80%</option>
+            <option value="90">90%</option>
+            <option value="100">100%</option>
+          </select>
         </div>
       </div>
     </section>
@@ -55,7 +77,7 @@
       <article class="info-card">
         <div class="icon-badge">📅</div>
         <div>
-          <span class="info-label">Dia da Base</span>
+          <span class="info-label">Dia da Entrega</span>
           <strong id="selectedDayName">-</strong>
         </div>
       </article>
@@ -66,9 +88,9 @@
           <strong id="totalSold">0</strong>
         </div>
         <div class="metric">
-          <span>Total Sugestão Comercial</span>
+          <span>Total Sugestão Só Folhas</span>
           <strong id="totalSoFolhas">0</strong>
-          <small id="totalSoFolhasPercentLabel">Configuração ADM</small>
+          <small id="totalSoFolhasPercentLabel">(+40%)</small>
         </div>
         <div class="metric metric-store">
           <span>Total Sugestão da Loja</span>
@@ -84,7 +106,7 @@
             <tr>
               <th>Produto</th>
               <th>Venda Ano Passado<br /><span id="tableDayLabel">-</span></th>
-              <th id="commercialSuggestionHeader">Sugestão Comercial<br />Configuração ADM</th>
+              <th id="soFolhasHeaderLabel">Sugestão Só Folhas<br />(+40%)</th>
               <th>Sugestão da Loja<br />(preencha)</th>
               <th>Observação<br />(opcional)</th>
             </tr>
@@ -110,7 +132,7 @@
       </button>
     </section>
 
-    <p class="helper-text">Preencha a sugestão da loja e clique em salvar. Quando a sugestão da loja for diferente da sugestão comercial, a justificativa será obrigatória.</p>
+    <p class="helper-text">Preencha a sugestão da loja e clique em salvar.</p>
 
     <div id="statusMessage" class="status-message" aria-live="polite"></div>
   </main>
@@ -173,33 +195,6 @@
             </div>
           </section>
 
-          <section class="admin-summary-card">
-            <div class="admin-summary-head admin-summary-head-stack">
-              <div>
-                <h3>Percentual comercial por dia</h3>
-                <p class="admin-section-copy">Defina aqui o nome do dia e o percentual fixo de aumento para cada data importada. Ao salvar, a sugestão comercial será atualizada automaticamente para todos os usuários conectados.</p>
-              </div>
-              <span id="adminPercentageMeta" class="admin-summary-meta">Configuração padrão: 40%</span>
-            </div>
-
-            <div class="admin-summary-wrap">
-              <table class="admin-summary-table admin-percentage-table">
-                <thead>
-                  <tr>
-                    <th>Dia</th>
-                    <th>Data base</th>
-                    <th>% aumento</th>
-                  </tr>
-                </thead>
-                <tbody id="adminPercentageBody"></tbody>
-              </table>
-            </div>
-
-            <div class="admin-export-actions">
-              <button id="adminSavePercentagesButton" class="admin-primary-button" type="button">Salvar percentuais</button>
-            </div>
-          </section>
-
           <section class="admin-summary-card admin-files-card">
             <div class="admin-summary-head admin-summary-head-stack">
               <div>
@@ -238,7 +233,7 @@
                     <th>Loja</th>
                     <th>Dia</th>
                     <th>Total Vendido</th>
-                    <th>Total Sugestão Comercial</th>
+                    <th>Total Sugestão Só Folhas</th>
                     <th>Total Sugestão Loja</th>
                     <th>Responsável</th>
                     <th>Último envio</th>
@@ -284,7 +279,7 @@
             <div class="admin-summary-head admin-summary-head-stack">
               <div>
                 <h3>Dados preenchidos pelas lojas</h3>
-                <p class="admin-section-copy">Visualização completa da sugestão comercial e da sugestão informada pela loja.</p>
+                <p class="admin-section-copy">Visualização completa da sugestão Só Folhas e da sugestão informada pela loja.</p>
               </div>
               <span id="adminFilledMeta" class="admin-summary-meta"></span>
             </div>
@@ -349,7 +344,7 @@
                     <th>Responsável</th>
                     <th>Produto</th>
                     <th>Venda Ano Passado</th>
-                    <th>Sugestão Comercial</th>
+                    <th>Sugestão Só Folhas</th>
                     <th>Sugestão da Loja</th>
                     <th>Observação</th>
                     <th>Último envio</th>
